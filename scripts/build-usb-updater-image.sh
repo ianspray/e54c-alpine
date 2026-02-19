@@ -47,7 +47,8 @@ echo "Preparing updater Alpine rootfs..."
 ROOTFS_DIR="$UPDATER_ROOTFS_DIR" \
 ROOTFS_TAR="$UPDATER_ROOTFS_TAR" \
 ALPINE_PACKAGES="$UPDATER_ALPINE_PACKAGES" \
-ENABLE_BOOT_NET_BANNER=0 \
+ENABLE_BOOT_NET_BANNER=1 \
+BOOT_BANNER_TITLE="E54C USB updater image" \
 "$SCRIPT_DIR/prepare-alpine-rootfs.sh"
 
 mkdir -p "$UPDATER_PAYLOAD_DIR"
@@ -71,6 +72,8 @@ DONE_MARKER="$EFI_MOUNT/UPDATE_DONE"
 log() {
   echo "[e54c-usb-updater] $*"
 }
+
+log "E54C USB updater image active."
 
 if [ -f "$DONE_MARKER" ]; then
   log "Update already completed on this USB media; skipping."

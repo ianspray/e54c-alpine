@@ -21,6 +21,7 @@ ROOT_PASSWORD_HASH="${ROOT_PASSWORD_HASH:-\$6\$e54c\$AvSUgOTK89YCT1RHhqB/SfsK3J5
 ROOT_PASSWORD_PLAIN="${ROOT_PASSWORD_PLAIN:-}"
 ROOT_PASSWORD_SALT="${ROOT_PASSWORD_SALT:-e54c}"
 ENABLE_BOOT_NET_BANNER="${ENABLE_BOOT_NET_BANNER:-1}"
+BOOT_BANNER_TITLE="${BOOT_BANNER_TITLE:-}"
 ENABLE_BOOT_NTP_SYNC="${ENABLE_BOOT_NTP_SYNC:-1}"
 BOOT_NTP_SERVERS="${BOOT_NTP_SERVERS:-pool.ntp.org time.cloudflare.com time.google.com}"
 E54C_FORCE_DSA_MODULES="${E54C_FORCE_DSA_MODULES:-1}"
@@ -251,6 +252,7 @@ set -eu
 
 SERIAL_TTY="${SERIAL_TTY}"
 WAIT_SECONDS="\${NET_ADDR_WAIT_SECONDS:-40}"
+BANNER_TITLE="${BOOT_BANNER_TITLE}"
 
 collect_addrs() {
   ip -o -4 addr show scope global 2>/dev/null | awk '{print "IPv4 " \$2 " " \$4}'
@@ -276,6 +278,10 @@ issue_base_file="/etc/issue.base"
     echo "Alpine Linux"
   fi
   echo
+  if [ -n "\$BANNER_TITLE" ]; then
+    echo "\$BANNER_TITLE"
+    echo
+  fi
   echo "Network addresses:"
   if [ -n "\$addrs" ]; then
     echo "\$addrs"
@@ -286,6 +292,9 @@ issue_base_file="/etc/issue.base"
 
 {
   echo
+  if [ -n "\$BANNER_TITLE" ]; then
+    echo "=== \$BANNER_TITLE ==="
+  fi
   echo "=== Network Addresses ==="
   if [ -n "\$addrs" ]; then
     echo "\$addrs"
