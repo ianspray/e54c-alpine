@@ -17,6 +17,7 @@ UPDATER_PAYLOAD_SHA256="${UPDATER_PAYLOAD_SHA256:-$UPDATER_PAYLOAD_FILE.sha256}"
 UPDATER_OVERHEAD_MIB="${UPDATER_OVERHEAD_MIB:-2048}"
 USB_IMAGE_SIZE="${USB_IMAGE_SIZE:-}"
 UPDATER_TARGET_NVME_DEVICE="${UPDATER_TARGET_NVME_DEVICE:-/dev/nvme0n1}"
+UPDATER_ROOT_PARTLABEL="${UPDATER_ROOT_PARTLABEL:-updater-rootfs}"
 UPDATER_ALPINE_PACKAGES="${UPDATER_ALPINE_PACKAGES:-alpine-base alpine-conf openssh mtd-utils zstd}"
 
 require_cmd() {
@@ -160,14 +161,16 @@ echo "Assembling USB updater image..."
 IMAGE_PATH="$USB_UPDATER_IMAGE_PATH" \
 IMAGE_SIZE="$USB_IMAGE_SIZE" \
 ROOTFS_TAR="$UPDATER_ROOTFS_TAR" \
+ROOTFS_PARTLABEL="$UPDATER_ROOT_PARTLABEL" \
+ROOTFS_MKFS_LABEL="$UPDATER_ROOT_PARTLABEL" \
 DEFAULT_BOOT_MODE=maintenance \
-KERNEL_CMDLINE_MAINTENANCE="root=PARTLABEL=rootfs rootfstype=ext4 rootwait rw console=ttyFIQ0,1500000n8 earlycon" \
-KERNEL_CMDLINE_IMMUTABLE="root=PARTLABEL=rootfs rootfstype=ext4 rootwait rw console=ttyFIQ0,1500000n8 earlycon" \
+KERNEL_CMDLINE_MAINTENANCE="root=PARTLABEL=$UPDATER_ROOT_PARTLABEL rootfstype=ext4 rootwait rw console=ttyFIQ0,1500000n8 earlycon" \
+KERNEL_CMDLINE_IMMUTABLE="root=PARTLABEL=$UPDATER_ROOT_PARTLABEL rootfstype=ext4 rootwait rw console=ttyFIQ0,1500000n8 earlycon" \
 "$SCRIPT_DIR/assemble-e54c-image.sh"
 
 tmp_extlinux="$(mktemp)"
 trap 'rm -f "$tmp_extlinux"' EXIT
-cat >"$tmp_extlinux" <<'EOF'
+cat >"$tmp_extlinux" <<EOF
 DEFAULT updater
 MENU TITLE U-Boot menu
 PROMPT 1
@@ -177,7 +180,7 @@ LABEL updater
   MENU LABEL Alpine Linux USB updater (flash NVMe and reboot)
   LINUX /boot/Image
   FDT /boot/dtbs/rockchip/rk3588s-radxa-e54c-spi.dtb
-  APPEND root=PARTLABEL=rootfs rootfstype=ext4 rootwait rw console=ttyFIQ0,1500000n8 earlycon
+  APPEND root=PARTLABEL=${UPDATER_ROOT_PARTLABEL} rootfstype=ext4 rootwait rw console=ttyFIQ0,1500000n8 earlycon
 EOF
 
 guestfish <<EOF

@@ -18,6 +18,8 @@ UBOOT_DIR="${UBOOT_DIR:-$REPO_ROOT/assets/reference/u-boot}"
 CONFIG_FILE="${CONFIG_FILE:-$REPO_ROOT/assets/reference/radxa/config.txt}"
 DEFAULT_BOOT_MODE="${DEFAULT_BOOT_MODE:-immutable}"
 BOARD_DTB_NAME="${BOARD_DTB_NAME:-rk3588s-radxa-e54c-spi.dtb}"
+ROOTFS_PARTLABEL="${ROOTFS_PARTLABEL:-rootfs}"
+ROOTFS_MKFS_LABEL="${ROOTFS_MKFS_LABEL:-$ROOTFS_PARTLABEL}"
 
 # Partition geometry (512-byte sectors):
 # - p1 config: 256 MiB (starts at 16 MiB)
@@ -72,7 +74,7 @@ cp "$KERNEL_DTB" "$tmp_stage/boot/dtbs/rockchip/"
 
 # Keep bootargs intentionally short and put root first.
 # Some U-Boot extlinux paths appear to truncate long APPEND lines.
-CMDLINE_BASE_DEFAULT="root=PARTLABEL=rootfs rootfstype=ext4 rootwait console=ttyFIQ0,1500000n8 earlycon"
+CMDLINE_BASE_DEFAULT="root=PARTLABEL=${ROOTFS_PARTLABEL} rootfstype=ext4 rootwait console=ttyFIQ0,1500000n8 earlycon"
 CMDLINE_BASE="${KERNEL_CMDLINE_BASE:-$CMDLINE_BASE_DEFAULT}"
 CMDLINE_IMMUTABLE_DEFAULT="${CMDLINE_BASE} ro overlaytmpfs=yes"
 CMDLINE_MAINTENANCE_DEFAULT="${CMDLINE_BASE} rw"
@@ -126,13 +128,13 @@ part-add /dev/sda p $P2_START $P2_END
 part-add /dev/sda p $P3_START -34
 part-set-name /dev/sda 1 config
 part-set-name /dev/sda 2 efi
-part-set-name /dev/sda 3 rootfs
+part-set-name /dev/sda 3 $ROOTFS_PARTLABEL
 part-set-gpt-type /dev/sda 1 0FC63DAF-8483-4772-8E79-3D69D8477DE4
 part-set-gpt-type /dev/sda 2 C12A7328-F81F-11D2-BA4B-00A0C93EC93B
 part-set-gpt-type /dev/sda 3 0FC63DAF-8483-4772-8E79-3D69D8477DE4
 mkfs vfat /dev/sda1 label:config
 mkfs vfat /dev/sda2 label:efi
-mkfs ext4 /dev/sda3 label:rootfs
+mkfs ext4 /dev/sda3 label:$ROOTFS_MKFS_LABEL
 mount /dev/sda3 /
 mkdir-p /boot
 mkdir-p /boot/efi
