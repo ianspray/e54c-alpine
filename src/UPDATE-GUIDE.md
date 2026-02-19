@@ -87,7 +87,7 @@ scripts/assemble-e54c-image.sh
 
 4. Validate before flash:
    - `build/kernel-artifacts/<release>/boot/Image` exists.
-   - `build/kernel-artifacts/<release>/boot/dtbs/rockchip/rk3588s-radxa-e54c.dtb` exists.
+   - `build/kernel-artifacts/<release>/boot/dtbs/rockchip/rk3588s-radxa-e54c-spi.dtb` exists.
    - `build/kernel-artifacts/<release>/rootfs/lib/modules/<release>` exists.
    - Image contains `/lib/modules/<release>`.
 
@@ -237,7 +237,7 @@ Verdict: best sustainability/correctness tradeoff.
 When kernel changes, update these as one versioned bundle:
 
 1. `Image`
-2. `rk3588s-radxa-e54c.dtb` (and any needed DTBs)
+2. `rk3588s-radxa-e54c-spi.dtb` (and any needed DTBs)
 3. `/lib/modules/<kernel-release>`
 4. Userland package set that depends on kernel ABI
 

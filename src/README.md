@@ -87,6 +87,7 @@ sudo scripts/write-image-to-nvme.sh --device /dev/nvme0n1 --dry-run
 - Alpine rootfs defaults:
   - Serial-only login on `ttyFIQ0` at `1500000` baud
   - `openrc` enabled for boot + networking + sshd
+  - Default boot DTB is `rk3588s-radxa-e54c-spi.dtb`
   - Immutable runtime mode by default: kernel cmdline uses `overlaytmpfs=yes` and read-only lower root
   - Maintenance boot mode available in extlinux menu with writable rootfs (`rw`, no overlay)
   - One-shot mode switch helper available on target: `/usr/local/sbin/e54c-boot-mode`
@@ -97,6 +98,7 @@ sudo scripts/write-image-to-nvme.sh --device /dev/nvme0n1 --dry-run
   - `lbu` configured with `LBU_MEDIA=config`
   - `config` and `efi` partitions are mounted read-only in normal operation
   - `/etc/apk/cache` points to `/media/config/cache`; remount `config` read-write for maintenance/package operations
+  - Root `authorized_keys` is auto-populated from `assets/reference/alpine/root_authorized_keys` when present
   - Temporary root password enabled for serial bring-up: `alpine`
 
 ## Customization
@@ -108,6 +110,8 @@ sudo scripts/write-image-to-nvme.sh --device /dev/nvme0n1 --dry-run
   - or override ad hoc with `ALPINE_PACKAGES="alpine-base alpine-conf openssh curl" scripts/prepare-alpine-rootfs.sh`
 - Inject root SSH authorized keys during image build:
   - `ROOT_AUTHORIZED_KEYS_FILE=/path/to/authorized_keys scripts/prepare-alpine-rootfs.sh`
+- Disable default key injection:
+  - `ROOT_AUTHORIZED_KEYS_FILE= scripts/prepare-alpine-rootfs.sh`
 - Disable temporary root password in future builds:
   - `ROOT_PASSWORD_HASH= ROOT_PASSWORD_PLAIN= scripts/prepare-alpine-rootfs.sh`
 - Set custom root password at build time:
@@ -116,6 +120,8 @@ sudo scripts/write-image-to-nvme.sh --device /dev/nvme0n1 --dry-run
   - `E54C_FORCE_DSA_MODULES=0 scripts/prepare-alpine-rootfs.sh`
 - Change default boot mode in generated extlinux config:
   - `DEFAULT_BOOT_MODE=maintenance scripts/assemble-e54c-image.sh`
+- Override default DTB used by extlinux and `/boot/efi/boot/dtbs/rockchip`:
+  - `BOARD_DTB_NAME=rk3588s-radxa-e54c.dtb scripts/assemble-e54c-image.sh`
 - Override immutable/maintenance cmdlines:
   - `KERNEL_CMDLINE_IMMUTABLE='root=PARTLABEL=rootfs rootfstype=ext4 rootwait console=ttyFIQ0,1500000n8 earlycon ro overlaytmpfs=yes' scripts/assemble-e54c-image.sh`
   - `KERNEL_CMDLINE_MAINTENANCE='root=PARTLABEL=rootfs rootfstype=ext4 rootwait console=ttyFIQ0,1500000n8 earlycon rw' scripts/assemble-e54c-image.sh`

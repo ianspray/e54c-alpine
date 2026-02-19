@@ -17,6 +17,7 @@ ROOTFS_TAR="${ROOTFS_TAR:-$REPO_ROOT/build/alpine-rootfs.tar}"
 UBOOT_DIR="${UBOOT_DIR:-$REPO_ROOT/assets/reference/u-boot}"
 CONFIG_FILE="${CONFIG_FILE:-$REPO_ROOT/assets/reference/radxa/config.txt}"
 DEFAULT_BOOT_MODE="${DEFAULT_BOOT_MODE:-immutable}"
+BOARD_DTB_NAME="${BOARD_DTB_NAME:-rk3588s-radxa-e54c-spi.dtb}"
 
 # Partition geometry (512-byte sectors):
 # - p1 config: 256 MiB (starts at 16 MiB)
@@ -46,7 +47,7 @@ for req in "$ROOTFS_TAR" "$UBOOT_DIR/idbloader.img" "$UBOOT_DIR/u-boot.itb" "$KE
   fi
 done
 
-KERNEL_DTB="$KERNEL_RELEASE_DIR/boot/dtbs/rockchip/rk3588s-radxa-e54c.dtb"
+KERNEL_DTB="$KERNEL_RELEASE_DIR/boot/dtbs/rockchip/$BOARD_DTB_NAME"
 if [ ! -f "$KERNEL_DTB" ]; then
   echo "Missing required DTB: $KERNEL_DTB" >&2
   exit 1
@@ -96,13 +97,13 @@ TIMEOUT 50
 LABEL immutable
   MENU LABEL Alpine Linux (immutable root, overlaytmpfs)
   LINUX /boot/Image
-  FDT /boot/dtbs/rockchip/rk3588s-radxa-e54c.dtb
+  FDT /boot/dtbs/rockchip/${BOARD_DTB_NAME}
   APPEND ${CMDLINE_IMMUTABLE}
 
 LABEL maintenance
   MENU LABEL Alpine Linux (maintenance, writable rootfs)
   LINUX /boot/Image
-  FDT /boot/dtbs/rockchip/rk3588s-radxa-e54c.dtb
+  FDT /boot/dtbs/rockchip/${BOARD_DTB_NAME}
   APPEND ${CMDLINE_MAINTENANCE}
 EOF
 
@@ -147,7 +148,7 @@ mkdir-p /boot/efi/extlinux
 mkdir-p /boot/efi/boot/dtbs/rockchip
 upload $tmp_stage/boot/extlinux/extlinux.conf /boot/efi/extlinux/extlinux.conf
 upload $tmp_stage/boot/Image /boot/efi/boot/Image
-upload $KERNEL_DTB /boot/efi/boot/dtbs/rockchip/rk3588s-radxa-e54c.dtb
+upload $KERNEL_DTB /boot/efi/boot/dtbs/rockchip/${BOARD_DTB_NAME}
 EOF
 
 # Radxa E54C bootloader offsets from vendor setup script:

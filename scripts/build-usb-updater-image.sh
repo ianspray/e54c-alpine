@@ -176,7 +176,7 @@ TIMEOUT 10
 LABEL updater
   MENU LABEL Alpine Linux USB updater (flash NVMe and reboot)
   LINUX /boot/Image
-  FDT /boot/dtbs/rockchip/rk3588s-radxa-e54c.dtb
+  FDT /boot/dtbs/rockchip/rk3588s-radxa-e54c-spi.dtb
   APPEND root=PARTLABEL=rootfs rootfstype=ext4 rootwait rw console=ttyFIQ0,1500000n8 earlycon
 EOF
 
