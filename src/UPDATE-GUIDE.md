@@ -115,10 +115,10 @@ Outputs are placed under `build/u-boot-artifacts/` and include:
 Flash the single SPI image:
 
 ```bash
-sudo dd if=build/u-boot-artifacts/<stamp>/spi-u-boot-16MiB.img of=/dev/mtdblock0 bs=1M conv=fsync,notrunc status=progress
+sudo flashcp -v build/u-boot-artifacts/<stamp>/spi-u-boot-16MiB.img /dev/mtd0
 ```
 
-The same image is assembled with Rockchip offsets internally (`idbloader` at LBA 64, `u-boot.itb` at LBA 16384).
+The same image is assembled with Rockchip offsets internally (`idbloader` at LBA 64, `u-boot.itb` at LBA 16384). By default, the build composes this image from the current Radxa SPI base image and then injects your patched `u-boot.itb`.
 
 ## 3) Maintenance Boot Workflow
 

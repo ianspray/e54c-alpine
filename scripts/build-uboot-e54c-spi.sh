@@ -17,6 +17,9 @@ JOBS="${JOBS:-$(nproc)}"
 SPI_IDBLOADER_LBA="${SPI_IDBLOADER_LBA:-64}"
 SPI_UBOOT_ITB_LBA="${SPI_UBOOT_ITB_LBA:-16384}"
 SPI_IMAGE_SIZE_BYTES="${SPI_IMAGE_SIZE_BYTES:-16777216}"
+SPI_IMAGE_STRATEGY="${SPI_IMAGE_STRATEGY:-base-image}"
+SPI_BASE_IMAGE_URL="${SPI_BASE_IMAGE_URL:-https://dl.radxa.com/e/e54c/images/radxa-e54c-spi-flash-image.img}"
+SPI_BASE_IMAGE_PATH="${SPI_BASE_IMAGE_PATH:-$REPO_ROOT/build/downloads/radxa-e54c-spi-flash-image.img}"
 
 require_cmd() {
   local cmd="$1"
@@ -29,6 +32,9 @@ require_cmd() {
 for cmd in git make "${CROSS_COMPILE}gcc" dtc awk sed python3 stat; do
   require_cmd "$cmd"
 done
+if [ "$SPI_IMAGE_STRATEGY" = "base-image" ]; then
+  require_cmd curl
+fi
 
 if [ ! -f "$PATCH_FILE" ]; then
   echo "Patch file not found: $PATCH_FILE" >&2
@@ -98,18 +104,38 @@ if [ -f "$REPO_ROOT/assets/reference/u-boot/idbloader.img" ]; then
   cp "$REPO_ROOT/assets/reference/u-boot/idbloader.img" "$ARTIFACT_DIR/idbloader.vendor.img"
 fi
 
-IDBLOADER_FOR_SPI=""
-if [ -f "$ARTIFACT_DIR/idbloader.vendor.img" ]; then
-  IDBLOADER_FOR_SPI="$ARTIFACT_DIR/idbloader.vendor.img"
-elif [ -f "$ARTIFACT_DIR/idbloader-spl.img" ]; then
-  IDBLOADER_FOR_SPI="$ARTIFACT_DIR/idbloader-spl.img"
-else
-  echo "No idbloader image available for SPI image assembly." >&2
-  exit 1
-fi
-
 SPI_IMAGE_PATH="$ARTIFACT_DIR/spi-u-boot-16MiB.img"
-python3 - "$SPI_IMAGE_PATH" "$SPI_IMAGE_SIZE_BYTES" <<'PY'
+SPI_IMAGE_SOURCE="generated-blank"
+SPI_IMAGE_SOURCE_SHA256=""
+
+if [ "$SPI_IMAGE_STRATEGY" = "base-image" ]; then
+  mkdir -p "$(dirname "$SPI_BASE_IMAGE_PATH")"
+  if [ ! -f "$SPI_BASE_IMAGE_PATH" ]; then
+    echo "Downloading base SPI image: $SPI_BASE_IMAGE_URL"
+    curl -fL "$SPI_BASE_IMAGE_URL" -o "$SPI_BASE_IMAGE_PATH"
+  fi
+  base_size="$(stat -c%s "$SPI_BASE_IMAGE_PATH")"
+  if [ "$base_size" -ne "$SPI_IMAGE_SIZE_BYTES" ]; then
+    echo "Base SPI image has unexpected size: $base_size (expected $SPI_IMAGE_SIZE_BYTES)" >&2
+    exit 1
+  fi
+  cp "$SPI_BASE_IMAGE_PATH" "$SPI_IMAGE_PATH"
+  SPI_IMAGE_SOURCE="$SPI_BASE_IMAGE_PATH"
+  if command -v sha256sum >/dev/null 2>&1; then
+    SPI_IMAGE_SOURCE_SHA256="$(sha256sum "$SPI_BASE_IMAGE_PATH" | awk '{print $1}')"
+  fi
+elif [ "$SPI_IMAGE_STRATEGY" = "idbloader" ]; then
+  IDBLOADER_FOR_SPI=""
+  if [ -f "$ARTIFACT_DIR/idbloader.vendor.img" ]; then
+    IDBLOADER_FOR_SPI="$ARTIFACT_DIR/idbloader.vendor.img"
+  elif [ -f "$ARTIFACT_DIR/idbloader-spl.img" ]; then
+    IDBLOADER_FOR_SPI="$ARTIFACT_DIR/idbloader-spl.img"
+  else
+    echo "No idbloader image available for SPI image assembly." >&2
+    exit 1
+  fi
+
+  python3 - "$SPI_IMAGE_PATH" "$SPI_IMAGE_SIZE_BYTES" <<'PY'
 import pathlib
 import sys
 
@@ -123,22 +149,25 @@ with out_path.open("wb") as f:
         f.write(part)
         remaining -= len(part)
 PY
-
-IDBLOADER_SIZE="$(stat -c%s "$IDBLOADER_FOR_SPI")"
-UBOOT_ITB_SIZE="$(stat -c%s "$ARTIFACT_DIR/u-boot.itb")"
-IDBLOADER_OFFSET_BYTES="$((SPI_IDBLOADER_LBA * 512))"
-UBOOT_ITB_OFFSET_BYTES="$((SPI_UBOOT_ITB_LBA * 512))"
-
-if [ $((IDBLOADER_OFFSET_BYTES + IDBLOADER_SIZE)) -gt "$SPI_IMAGE_SIZE_BYTES" ]; then
-  echo "idbloader does not fit in SPI image size ($SPI_IMAGE_SIZE_BYTES bytes)." >&2
+  IDBLOADER_SIZE="$(stat -c%s "$IDBLOADER_FOR_SPI")"
+  IDBLOADER_OFFSET_BYTES="$((SPI_IDBLOADER_LBA * 512))"
+  if [ $((IDBLOADER_OFFSET_BYTES + IDBLOADER_SIZE)) -gt "$SPI_IMAGE_SIZE_BYTES" ]; then
+    echo "idbloader does not fit in SPI image size ($SPI_IMAGE_SIZE_BYTES bytes)." >&2
+    exit 1
+  fi
+  dd conv=notrunc if="$IDBLOADER_FOR_SPI" of="$SPI_IMAGE_PATH" bs=512 seek="$SPI_IDBLOADER_LBA" status=none
+  SPI_IMAGE_SOURCE="$IDBLOADER_FOR_SPI + blank"
+else
+  echo "Unsupported SPI_IMAGE_STRATEGY: $SPI_IMAGE_STRATEGY (expected base-image|idbloader)" >&2
   exit 1
 fi
+
+UBOOT_ITB_SIZE="$(stat -c%s "$ARTIFACT_DIR/u-boot.itb")"
+UBOOT_ITB_OFFSET_BYTES="$((SPI_UBOOT_ITB_LBA * 512))"
 if [ $((UBOOT_ITB_OFFSET_BYTES + UBOOT_ITB_SIZE)) -gt "$SPI_IMAGE_SIZE_BYTES" ]; then
   echo "u-boot.itb does not fit in SPI image size ($SPI_IMAGE_SIZE_BYTES bytes)." >&2
   exit 1
 fi
-
-dd conv=notrunc if="$IDBLOADER_FOR_SPI" of="$SPI_IMAGE_PATH" bs=512 seek="$SPI_IDBLOADER_LBA" status=none
 dd conv=notrunc if="$ARTIFACT_DIR/u-boot.itb" of="$SPI_IMAGE_PATH" bs=512 seek="$SPI_UBOOT_ITB_LBA" status=none
 
 if command -v sha256sum >/dev/null 2>&1; then
@@ -156,7 +185,9 @@ dtc -I dtb -O dts -o "$DTS_CHECK" "$ARTIFACT_DIR/u-boot.dtb" >/dev/null 2>&1 || 
   echo "patch_file=$PATCH_FILE"
   echo "patch_state=$PATCH_STATE"
   echo "cross_compile=$CROSS_COMPILE"
-  echo "spi_idbloader_source=$IDBLOADER_FOR_SPI"
+  echo "spi_image_strategy=$SPI_IMAGE_STRATEGY"
+  echo "spi_image_source=$SPI_IMAGE_SOURCE"
+  echo "spi_image_source_sha256=$SPI_IMAGE_SOURCE_SHA256"
   echo "spi_idbloader_lba=$SPI_IDBLOADER_LBA"
   echo "spi_u_boot_itb_lba=$SPI_UBOOT_ITB_LBA"
   echo "spi_image_size_bytes=$SPI_IMAGE_SIZE_BYTES"

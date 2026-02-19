@@ -39,7 +39,7 @@ scripts/build-uboot-e54c-spi.sh
 Write the generated combined SPI image directly to flash (example):
 
 ```bash
-sudo dd if=build/u-boot-artifacts/<stamp>/spi-u-boot-16MiB.img of=/dev/mtdblock0 bs=1M conv=fsync,notrunc status=progress
+sudo flashcp -v build/u-boot-artifacts/<stamp>/spi-u-boot-16MiB.img /dev/mtd0
 ```
 
 Write USB updater image to a USB stick:
@@ -73,7 +73,8 @@ sudo scripts/write-image-to-nvme.sh --device /dev/nvme0n1 --dry-run
   - `u-boot.itb` -> LBA `16384`
 - `scripts/build-uboot-e54c-spi.sh` also emits a pre-composed SPI image:
   - `spi-u-boot-16MiB.img`
-  - ready to write from byte `0` of SPI (for example `/dev/mtdblock0`)
+  - built by default from the latest Radxa SPI base image with patched `u-boot.itb` injected
+  - ready to write from byte `0` of SPI (to `/dev/mtd0` with `flashcp`)
 - Partition layout matches Radxa reference image:
   - `p1` `config` FAT32 at `16 MiB` offset, size `256 MiB`
   - `p2` `efi` FAT32, size `300 MiB`
