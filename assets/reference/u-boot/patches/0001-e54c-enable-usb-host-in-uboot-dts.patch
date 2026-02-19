@@ -1,5 +1,4 @@
 diff --git a/arch/arm/dts/rk3588s-radxa-e54c.dts b/arch/arm/dts/rk3588s-radxa-e54c.dts
-index 549f8cd56fb..0bdef469563 100644
 --- a/arch/arm/dts/rk3588s-radxa-e54c.dts
 +++ b/arch/arm/dts/rk3588s-radxa-e54c.dts
 @@ -8,11 +8,37 @@
@@ -40,54 +39,65 @@ index 549f8cd56fb..0bdef469563 100644
  };
  
  /* M.2 M-KEY PCIe */
-@@ -24,3 +50,61 @@
+@@ -24,3 +50,72 @@
  	status = "okay";
  	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
  };
 +
 +&u2phy2 {
++	u-boot,dm-pre-reloc;
 +	status = "okay";
 +};
 +
 +&u2phy2_host {
++	u-boot,dm-pre-reloc;
 +	phy-supply = <&vcc5v0_usb_hub>;
 +	status = "okay";
 +};
 +
 +&u2phy3 {
++	u-boot,dm-pre-reloc;
 +	status = "okay";
 +};
 +
 +&u2phy3_host {
++	u-boot,dm-pre-reloc;
 +	phy-supply = <&vcc5v0_usb3_host>;
 +	status = "okay";
 +};
 +
 +&usb_host0_ehci {
++	u-boot,dm-pre-reloc;
 +	status = "okay";
 +};
 +
 +&usb_host0_ohci {
++	u-boot,dm-pre-reloc;
 +	status = "okay";
 +};
 +
 +&usb_host1_ehci {
++	u-boot,dm-pre-reloc;
 +	status = "okay";
 +};
 +
 +&usb_host1_ohci {
++	u-boot,dm-pre-reloc;
 +	status = "okay";
 +};
 +
 +&usbhost3_0 {
++	u-boot,dm-pre-reloc;
 +	status = "okay";
 +};
 +
 +&usbhost_dwc3_0 {
++	u-boot,dm-pre-reloc;
 +	status = "okay";
 +};
 +
 +&combphy2_psu {
++	u-boot,dm-pre-reloc;
 +	status = "okay";
 +};
 +
