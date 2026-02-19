@@ -15,6 +15,12 @@ The current runtime layout is:
 2. `p2` (`efi`) for extlinux + kernel + DTB.
 3. `p3` (`rootfs`) for Alpine root filesystem.
 
+Current default partition sizing:
+
+1. `p1` `config`: 256 MiB
+2. `p2` `efi`: 300 MiB
+3. `p3` `rootfs`: remainder
+
 ## 1) Updating Alpine Userland to a New Version
 
 Recommended process:
@@ -38,8 +44,9 @@ scripts/assemble-e54c-image.sh
 Sustainability notes:
 
 1. Always set `ALPINE_BRANCH` and `ALPINE_VERSION` explicitly in CI/release jobs.
-2. Keep `ALPINE_PACKAGES` small and intentional.
-3. Keep build-time temporary credentials controllable with env vars:
+2. Keep baseline packages in `assets/reference/alpine/packages.txt` small and intentional.
+3. Use `ALPINE_PACKAGES` only for one-off overrides in automated jobs.
+4. Keep build-time temporary credentials controllable with env vars:
    - `ROOT_PASSWORD_HASH`
    - `ROOT_PASSWORD_PLAIN`
 

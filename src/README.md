@@ -48,7 +48,7 @@ sudo scripts/write-image-to-nvme.sh --device /dev/nvme0n1 --dry-run
   - `idbloader.img` -> LBA `64`
   - `u-boot.itb` -> LBA `16384`
 - Partition layout matches Radxa reference image:
-  - `p1` `config` FAT32 at `16 MiB` offset, size `16 MiB`
+  - `p1` `config` FAT32 at `16 MiB` offset, size `256 MiB`
   - `p2` `efi` FAT32, size `300 MiB`
   - `p3` `rootfs` ext4 uses remainder
 - Alpine rootfs defaults:
@@ -66,7 +66,8 @@ sudo scripts/write-image-to-nvme.sh --device /dev/nvme0n1 --dry-run
 - Override serial device/baud:
   - `SERIAL_TTY=ttyS2 SERIAL_BAUD=1500000 scripts/prepare-alpine-rootfs.sh`
 - Override default package set:
-  - `ALPINE_PACKAGES="alpine-base alpine-conf openssh curl" scripts/prepare-alpine-rootfs.sh`
+  - Edit `assets/reference/alpine/packages.txt` (one package per line)
+  - or override ad hoc with `ALPINE_PACKAGES="alpine-base alpine-conf openssh curl" scripts/prepare-alpine-rootfs.sh`
 - Inject root SSH authorized keys during image build:
   - `ROOT_AUTHORIZED_KEYS_FILE=/path/to/authorized_keys scripts/prepare-alpine-rootfs.sh`
 - Disable temporary root password in future builds:

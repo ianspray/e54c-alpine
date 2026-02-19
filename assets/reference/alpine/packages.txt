@@ -1,0 +1,6 @@
+# Alpine packages pre-installed into the image rootfs.
+# One package per line.
+
+alpine-base
+alpine-conf
+openssh

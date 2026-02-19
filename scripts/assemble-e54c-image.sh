@@ -17,6 +17,18 @@ ROOTFS_TAR="${ROOTFS_TAR:-$REPO_ROOT/build/alpine-rootfs.tar}"
 UBOOT_DIR="${UBOOT_DIR:-$REPO_ROOT/assets/reference/u-boot}"
 CONFIG_FILE="${CONFIG_FILE:-$REPO_ROOT/assets/reference/radxa/config.txt}"
 
+# Partition geometry (512-byte sectors):
+# - p1 config: 256 MiB (starts at 16 MiB)
+# - p2 efi:    300 MiB
+# - p3 rootfs: remainder
+P1_START=32768
+P1_SIZE_SECTORS=$((256 * 1024 * 1024 / 512))
+P1_END=$((P1_START + P1_SIZE_SECTORS - 1))
+P2_START=$((P1_END + 1))
+P2_SIZE_SECTORS=$((300 * 1024 * 1024 / 512))
+P2_END=$((P2_START + P2_SIZE_SECTORS - 1))
+P3_START=$((P2_END + 1))
+
 if [ -z "${KERNEL_RELEASE_DIR:-}" ]; then
   KERNEL_RELEASE_DIR="$(ls -dt "$REPO_ROOT"/build/kernel-artifacts/* 2>/dev/null | head -n1 || true)"
 fi
@@ -87,9 +99,9 @@ guestfish <<EOF
 add-drive $IMAGE_PATH
 run
 part-init /dev/sda gpt
-part-add /dev/sda p 32768 65535
-part-add /dev/sda p 65536 679935
-part-add /dev/sda p 679936 -34
+part-add /dev/sda p $P1_START $P1_END
+part-add /dev/sda p $P2_START $P2_END
+part-add /dev/sda p $P3_START -34
 part-set-name /dev/sda 1 config
 part-set-name /dev/sda 2 efi
 part-set-name /dev/sda 3 rootfs

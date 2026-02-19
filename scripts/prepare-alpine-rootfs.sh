@@ -12,7 +12,8 @@ ALPINE_ARCH="${ALPINE_ARCH:-aarch64}"
 ALPINE_MIRROR="${ALPINE_MIRROR:-https://dl-cdn.alpinelinux.org/alpine}"
 HOST_ARCH="${HOST_ARCH:-$(uname -m)}"
 APK_CACHE_DIR="${APK_CACHE_DIR:-$REPO_ROOT/build/apk-cache}"
-ALPINE_PACKAGES="${ALPINE_PACKAGES:-alpine-base alpine-conf openssh}"
+ALPINE_PACKAGES="${ALPINE_PACKAGES:-}"
+ALPINE_PACKAGE_LIST_FILE="${ALPINE_PACKAGE_LIST_FILE:-$REPO_ROOT/assets/reference/alpine/packages.txt}"
 SERIAL_TTY="${SERIAL_TTY:-ttyFIQ0}"
 SERIAL_BAUD="${SERIAL_BAUD:-1500000}"
 ROOT_AUTHORIZED_KEYS_FILE="${ROOT_AUTHORIZED_KEYS_FILE:-}"
@@ -83,6 +84,24 @@ tar -xzf "$APK_TOOLS_STATIC_PATH" -C "$tmp_work"
 APK_STATIC="$tmp_work/sbin/apk.static"
 chmod +x "$APK_STATIC"
 
+package_args=()
+if [ -n "$ALPINE_PACKAGES" ]; then
+  read -r -a package_args <<<"$ALPINE_PACKAGES"
+elif [ -f "$ALPINE_PACKAGE_LIST_FILE" ]; then
+  while IFS= read -r line; do
+    line="$(printf '%s' "$line" | sed -E 's/[[:space:]]*#.*$//; s/^[[:space:]]+//; s/[[:space:]]+$//')"
+    if [ -n "$line" ]; then
+      package_args+=("$line")
+    fi
+  done <"$ALPINE_PACKAGE_LIST_FILE"
+fi
+
+if [ "${#package_args[@]}" -eq 0 ]; then
+  package_args=(alpine-base alpine-conf openssh)
+fi
+
+echo "Installing Alpine packages into rootfs:"
+printf '  - %s\n' "${package_args[@]}"
 "$APK_STATIC" \
   --usermode \
   --arch "$ALPINE_ARCH" \
@@ -90,7 +109,7 @@ chmod +x "$APK_STATIC"
   --repositories-file "$ROOTFS_DIR/etc/apk/repositories" \
   --cache-dir "$APK_CACHE_DIR" \
   --no-scripts \
-  add $ALPINE_PACKAGES
+  add "${package_args[@]}"
 
 cat >"$ROOTFS_DIR/etc/fstab" <<'EOF'
 LABEL=config /media/config vfat defaults 0 2
