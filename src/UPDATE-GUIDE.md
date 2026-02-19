@@ -107,11 +107,18 @@ scripts/build-uboot-e54c-spi.sh
 
 Outputs are placed under `build/u-boot-artifacts/` and include:
 
-1. `u-boot.itb` (patched U-Boot proper)
-2. `idbloader.vendor.img` (copied fallback from current repo reference, when present)
-3. `build-info.txt` with source commit and DTS evidence
+1. `spi-u-boot-16MiB.img` (single image for direct write to SPI from offset 0)
+2. `u-boot.itb` (patched U-Boot proper)
+3. `idbloader.vendor.img` (copied fallback from current repo reference, when present)
+4. `build-info.txt` with source commit and DTS evidence
 
-Then flash SPI with your normal Rockchip offsets (idbloader at LBA 64, `u-boot.itb` at LBA 16384), and set boot order to `usb0 nvme0` if desired.
+Flash the single SPI image:
+
+```bash
+sudo dd if=build/u-boot-artifacts/<stamp>/spi-u-boot-16MiB.img of=/dev/mtdblock0 bs=1M conv=fsync,notrunc status=progress
+```
+
+The same image is assembled with Rockchip offsets internally (`idbloader` at LBA 64, `u-boot.itb` at LBA 16384).
 
 ## 3) Maintenance Boot Workflow
 

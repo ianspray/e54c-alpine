@@ -14,6 +14,9 @@ PATCH_FILE="${PATCH_FILE:-$REPO_ROOT/assets/reference/u-boot/patches/0001-e54c-e
 OUT_ROOT="${OUT_ROOT:-$REPO_ROOT/build/u-boot-artifacts}"
 CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}"
 JOBS="${JOBS:-$(nproc)}"
+SPI_IDBLOADER_LBA="${SPI_IDBLOADER_LBA:-64}"
+SPI_UBOOT_ITB_LBA="${SPI_UBOOT_ITB_LBA:-16384}"
+SPI_IMAGE_SIZE_BYTES="${SPI_IMAGE_SIZE_BYTES:-16777216}"
 
 require_cmd() {
   local cmd="$1"
@@ -23,7 +26,7 @@ require_cmd() {
   fi
 }
 
-for cmd in git make "${CROSS_COMPILE}gcc" dtc awk sed; do
+for cmd in git make "${CROSS_COMPILE}gcc" dtc awk sed python3 stat; do
   require_cmd "$cmd"
 done
 
@@ -95,6 +98,53 @@ if [ -f "$REPO_ROOT/assets/reference/u-boot/idbloader.img" ]; then
   cp "$REPO_ROOT/assets/reference/u-boot/idbloader.img" "$ARTIFACT_DIR/idbloader.vendor.img"
 fi
 
+IDBLOADER_FOR_SPI=""
+if [ -f "$ARTIFACT_DIR/idbloader.vendor.img" ]; then
+  IDBLOADER_FOR_SPI="$ARTIFACT_DIR/idbloader.vendor.img"
+elif [ -f "$ARTIFACT_DIR/idbloader-spl.img" ]; then
+  IDBLOADER_FOR_SPI="$ARTIFACT_DIR/idbloader-spl.img"
+else
+  echo "No idbloader image available for SPI image assembly." >&2
+  exit 1
+fi
+
+SPI_IMAGE_PATH="$ARTIFACT_DIR/spi-u-boot-16MiB.img"
+python3 - "$SPI_IMAGE_PATH" "$SPI_IMAGE_SIZE_BYTES" <<'PY'
+import pathlib
+import sys
+
+out_path = pathlib.Path(sys.argv[1])
+size = int(sys.argv[2], 10)
+chunk = b"\xff" * (1024 * 1024)
+remaining = size
+with out_path.open("wb") as f:
+    while remaining > 0:
+        part = chunk if remaining >= len(chunk) else b"\xff" * remaining
+        f.write(part)
+        remaining -= len(part)
+PY
+
+IDBLOADER_SIZE="$(stat -c%s "$IDBLOADER_FOR_SPI")"
+UBOOT_ITB_SIZE="$(stat -c%s "$ARTIFACT_DIR/u-boot.itb")"
+IDBLOADER_OFFSET_BYTES="$((SPI_IDBLOADER_LBA * 512))"
+UBOOT_ITB_OFFSET_BYTES="$((SPI_UBOOT_ITB_LBA * 512))"
+
+if [ $((IDBLOADER_OFFSET_BYTES + IDBLOADER_SIZE)) -gt "$SPI_IMAGE_SIZE_BYTES" ]; then
+  echo "idbloader does not fit in SPI image size ($SPI_IMAGE_SIZE_BYTES bytes)." >&2
+  exit 1
+fi
+if [ $((UBOOT_ITB_OFFSET_BYTES + UBOOT_ITB_SIZE)) -gt "$SPI_IMAGE_SIZE_BYTES" ]; then
+  echo "u-boot.itb does not fit in SPI image size ($SPI_IMAGE_SIZE_BYTES bytes)." >&2
+  exit 1
+fi
+
+dd conv=notrunc if="$IDBLOADER_FOR_SPI" of="$SPI_IMAGE_PATH" bs=512 seek="$SPI_IDBLOADER_LBA" status=none
+dd conv=notrunc if="$ARTIFACT_DIR/u-boot.itb" of="$SPI_IMAGE_PATH" bs=512 seek="$SPI_UBOOT_ITB_LBA" status=none
+
+if command -v sha256sum >/dev/null 2>&1; then
+  sha256sum "$SPI_IMAGE_PATH" >"$ARTIFACT_DIR/spi-u-boot-16MiB.img.sha256"
+fi
+
 DTS_CHECK="$ARTIFACT_DIR/u-boot.dts.dec"
 dtc -I dtb -O dts -o "$DTS_CHECK" "$ARTIFACT_DIR/u-boot.dtb" >/dev/null 2>&1 || true
 
@@ -106,6 +156,11 @@ dtc -I dtb -O dts -o "$DTS_CHECK" "$ARTIFACT_DIR/u-boot.dtb" >/dev/null 2>&1 || 
   echo "patch_file=$PATCH_FILE"
   echo "patch_state=$PATCH_STATE"
   echo "cross_compile=$CROSS_COMPILE"
+  echo "spi_idbloader_source=$IDBLOADER_FOR_SPI"
+  echo "spi_idbloader_lba=$SPI_IDBLOADER_LBA"
+  echo "spi_u_boot_itb_lba=$SPI_UBOOT_ITB_LBA"
+  echo "spi_image_size_bytes=$SPI_IMAGE_SIZE_BYTES"
+  echo "spi_image_file=$SPI_IMAGE_PATH"
   echo "source_dts_evidence:"
   grep -E "vcc5v0_usb_hub|vcc5v0_usb3_host|u2phy2_host|u2phy3_host|usb_host0_ehci|usb_host1_ehci|usbhost3_0|usbhost_dwc3_0" \
     "$UBOOT_WORKDIR/arch/arm/dts/rk3588s-radxa-e54c.dts" || true
@@ -118,6 +173,7 @@ dtc -I dtb -O dts -o "$DTS_CHECK" "$ARTIFACT_DIR/u-boot.dtb" >/dev/null 2>&1 || 
 echo "U-Boot build complete."
 echo "Artifacts: $ARTIFACT_DIR"
 echo "Key files:"
+echo "  - $SPI_IMAGE_PATH"
 echo "  - $ARTIFACT_DIR/u-boot.itb"
 if [ -f "$ARTIFACT_DIR/idbloader.vendor.img" ]; then
   echo "  - $ARTIFACT_DIR/idbloader.vendor.img"

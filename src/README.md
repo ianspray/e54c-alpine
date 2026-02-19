@@ -36,6 +36,12 @@ Build patched SPI U-Boot for E54C USB host bring-up:
 scripts/build-uboot-e54c-spi.sh
 ```
 
+Write the generated combined SPI image directly to flash (example):
+
+```bash
+sudo dd if=build/u-boot-artifacts/<stamp>/spi-u-boot-16MiB.img of=/dev/mtdblock0 bs=1M conv=fsync,notrunc status=progress
+```
+
 Write USB updater image to a USB stick:
 
 ```bash
@@ -65,6 +71,9 @@ sudo scripts/write-image-to-nvme.sh --device /dev/nvme0n1 --dry-run
 - U-Boot bootloader blobs are written at:
   - `idbloader.img` -> LBA `64`
   - `u-boot.itb` -> LBA `16384`
+- `scripts/build-uboot-e54c-spi.sh` also emits a pre-composed SPI image:
+  - `spi-u-boot-16MiB.img`
+  - ready to write from byte `0` of SPI (for example `/dev/mtdblock0`)
 - Partition layout matches Radxa reference image:
   - `p1` `config` FAT32 at `16 MiB` offset, size `256 MiB`
   - `p2` `efi` FAT32, size `300 MiB`
