@@ -55,7 +55,10 @@ mkdir -p "$UPDATER_PAYLOAD_DIR"
 
 echo "Creating compressed update payload..."
 zstd -T0 -f "$NVME_IMAGE_PATH" -o "$UPDATER_PAYLOAD_FILE"
-sha256sum "$UPDATER_PAYLOAD_FILE" >"$UPDATER_PAYLOAD_SHA256"
+(
+  cd "$UPDATER_PAYLOAD_DIR"
+  sha256sum "$(basename "$UPDATER_PAYLOAD_FILE")" >"$(basename "$UPDATER_PAYLOAD_SHA256")"
+)
 
 cat >"$UPDATER_ROOTFS_DIR/usr/local/sbin/e54c-run-usb-update" <<'EOF'
 #!/bin/sh
