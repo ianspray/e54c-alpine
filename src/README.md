@@ -87,6 +87,7 @@ sudo scripts/write-image-to-nvme.sh --device /dev/nvme0n1 --dry-run
 - Alpine rootfs defaults:
   - Serial-only login on `ttyFIQ0` at `1500000` baud
   - `openrc` enabled for boot + networking + sshd
+  - Non-blocking one-shot NTP sync is triggered at boot after networking (`e54c-ntp-sync`)
   - Default boot DTB is `rk3588s-radxa-e54c-spi.dtb`
   - Immutable runtime mode by default: kernel cmdline uses `overlaytmpfs=yes` and read-only lower root
   - Maintenance boot mode available in extlinux menu with writable rootfs (`rw`, no overlay)
@@ -112,6 +113,10 @@ sudo scripts/write-image-to-nvme.sh --device /dev/nvme0n1 --dry-run
   - `ROOT_AUTHORIZED_KEYS_FILE=/path/to/authorized_keys scripts/prepare-alpine-rootfs.sh`
 - Disable default key injection:
   - `ROOT_AUTHORIZED_KEYS_FILE= scripts/prepare-alpine-rootfs.sh`
+- Disable non-blocking boot NTP sync:
+  - `ENABLE_BOOT_NTP_SYNC=0 scripts/prepare-alpine-rootfs.sh`
+- Override one-shot NTP servers:
+  - `BOOT_NTP_SERVERS='pool.ntp.org time.cloudflare.com' scripts/prepare-alpine-rootfs.sh`
 - Disable temporary root password in future builds:
   - `ROOT_PASSWORD_HASH= ROOT_PASSWORD_PLAIN= scripts/prepare-alpine-rootfs.sh`
 - Set custom root password at build time:

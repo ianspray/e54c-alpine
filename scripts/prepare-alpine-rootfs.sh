@@ -21,6 +21,8 @@ ROOT_PASSWORD_HASH="${ROOT_PASSWORD_HASH:-\$6\$e54c\$AvSUgOTK89YCT1RHhqB/SfsK3J5
 ROOT_PASSWORD_PLAIN="${ROOT_PASSWORD_PLAIN:-}"
 ROOT_PASSWORD_SALT="${ROOT_PASSWORD_SALT:-e54c}"
 ENABLE_BOOT_NET_BANNER="${ENABLE_BOOT_NET_BANNER:-1}"
+ENABLE_BOOT_NTP_SYNC="${ENABLE_BOOT_NTP_SYNC:-1}"
+BOOT_NTP_SERVERS="${BOOT_NTP_SERVERS:-pool.ntp.org time.cloudflare.com time.google.com}"
 E54C_FORCE_DSA_MODULES="${E54C_FORCE_DSA_MODULES:-1}"
 
 DOWNLOAD_DIR="${DOWNLOAD_DIR:-$REPO_ROOT/build/downloads}"
@@ -320,6 +322,51 @@ start() {
 EOF
   chmod 0755 "$ROOTFS_DIR/etc/init.d/show-net-addrs"
   enable_service show-net-addrs default
+fi
+
+if [ "$ENABLE_BOOT_NTP_SYNC" = "1" ]; then
+  cat >"$ROOTFS_DIR/etc/conf.d/e54c-ntp-sync" <<EOF
+# Space-separated list of NTP servers for one-shot boot sync.
+servers="${BOOT_NTP_SERVERS}"
+EOF
+
+  cat >"$ROOTFS_DIR/etc/init.d/e54c-ntp-sync" <<'EOF'
+#!/sbin/openrc-run
+
+name="e54c-ntp-sync"
+description="Run one-shot NTP sync in background"
+
+depend() {
+  need networking
+  before sshd
+}
+
+start() {
+  ebegin "Triggering background NTP sync"
+  (
+    if [ -f /run/e54c-ntp-sync.done ]; then
+      exit 0
+    fi
+    : "${servers:=pool.ntp.org}"
+    ntp_cmd="$(command -v ntpd || true)"
+    if [ -n "$ntp_cmd" ]; then
+      ntp_invoke="$ntp_cmd"
+    else
+      ntp_invoke="/bin/busybox ntpd"
+    fi
+    args=""
+    for s in $servers; do
+      args="$args -p $s"
+    done
+    # One-shot sync; run detached so boot/login is never blocked.
+    sh -c "$ntp_invoke -q -n $args >/run/e54c-ntp-sync.log 2>&1 || true"
+    touch /run/e54c-ntp-sync.done
+  ) &
+  eend 0
+}
+EOF
+  chmod 0755 "$ROOTFS_DIR/etc/init.d/e54c-ntp-sync"
+  enable_service e54c-ntp-sync default
 fi
 
 mkdir -p "$ROOTFS_DIR/usr/local/sbin"
