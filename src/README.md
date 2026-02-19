@@ -56,6 +56,8 @@ sudo scripts/write-image-to-nvme.sh --device /dev/nvme0n1 --dry-run
   - `openrc` enabled for boot + networking + sshd
   - Immutable runtime mode by default: kernel cmdline uses `overlaytmpfs=yes` and read-only lower root
   - Maintenance boot mode available in extlinux menu with writable rootfs (`rw`, no overlay)
+  - One-shot mode switch helper available on target: `/usr/local/sbin/e54c-boot-mode`
+  - One-shot reboot workflow auto-restores default boot label to immutable after maintenance boot
   - E54C network defaults: DHCP client on `wan`; `lan1`/`lan2`/`lan3` set to `manual`
   - E54C DSA/Realtek modules are force-loaded via `/etc/modules` at boot
   - Boot-time console/login banner prints currently assigned global IP addresses
@@ -84,6 +86,31 @@ sudo scripts/write-image-to-nvme.sh --device /dev/nvme0n1 --dry-run
 - Override immutable/maintenance cmdlines:
   - `KERNEL_CMDLINE_IMMUTABLE='root=PARTLABEL=rootfs rootfstype=ext4 rootwait console=ttyFIQ0,1500000n8 earlycon ro overlaytmpfs=yes' scripts/assemble-e54c-image.sh`
   - `KERNEL_CMDLINE_MAINTENANCE='root=PARTLABEL=rootfs rootfstype=ext4 rootwait console=ttyFIQ0,1500000n8 earlycon rw' scripts/assemble-e54c-image.sh`
+
+## On-Device Boot Mode Switching
+
+Run on the E54C target as root:
+
+```bash
+e54c-boot-mode status
+e54c-boot-mode reboot-maintenance
+e54c-boot-mode reboot-immutable
+```
+
+Additional controls:
+
+```bash
+e54c-boot-mode next-maintenance
+e54c-boot-mode cancel-next
+e54c-boot-mode set-default immutable
+e54c-boot-mode set-default maintenance
+```
+
+Notes:
+
+- Standard `reboot`/`shutdown` do not natively select an extlinux boot label.
+- Use `e54c-boot-mode reboot-maintenance` for a one-shot maintenance boot without serial-console interaction.
+- After that maintenance boot, the next reboot returns to immutable by default.
 
 ## Operations Guide
 

@@ -313,6 +313,222 @@ EOF
   enable_service show-net-addrs default
 fi
 
+cat >"$ROOTFS_DIR/usr/local/sbin/e54c-boot-mode" <<'EOF'
+#!/bin/sh
+set -eu
+
+EFI_MOUNT="/boot/efi"
+CONFIG_MOUNT="/media/config"
+EXTLINUX_CONF="$EFI_MOUNT/extlinux/extlinux.conf"
+NEXT_FILE="$CONFIG_MOUNT/boot-mode.next"
+
+usage() {
+  cat <<'USAGE'
+Usage:
+  e54c-boot-mode status
+  e54c-boot-mode next-maintenance
+  e54c-boot-mode cancel-next
+  e54c-boot-mode set-default immutable|maintenance
+  e54c-boot-mode reboot-maintenance
+  e54c-boot-mode reboot-immutable
+USAGE
+}
+
+require_root() {
+  if [ "$(id -u)" -ne 0 ]; then
+    echo "This command must run as root." >&2
+    exit 1
+  fi
+}
+
+ensure_mounts() {
+  mountpoint -q "$EFI_MOUNT" || mount "$EFI_MOUNT"
+  mountpoint -q "$CONFIG_MOUNT" || mount "$CONFIG_MOUNT"
+}
+
+set_default_label() {
+  label="$1"
+  tmp="$(mktemp)"
+  awk -v lbl="$label" '
+    BEGIN { done=0 }
+    /^[[:space:]]*DEFAULT[[:space:]]+/ && done==0 {
+      print "DEFAULT " lbl
+      done=1
+      next
+    }
+    { print }
+    END {
+      if (done==0) exit 2
+    }
+  ' "$EXTLINUX_CONF" >"$tmp"
+  cat "$tmp" >"$EXTLINUX_CONF"
+  rm -f "$tmp"
+}
+
+get_default_label() {
+  awk '/^[[:space:]]*DEFAULT[[:space:]]+/ {print $2; exit}' "$EXTLINUX_CONF"
+}
+
+get_next_mode() {
+  if [ -f "$NEXT_FILE" ]; then
+    cat "$NEXT_FILE"
+  else
+    echo "none"
+  fi
+}
+
+current_mode() {
+  if grep -qw 'overlaytmpfs=yes' /proc/cmdline; then
+    echo "immutable"
+  else
+    echo "maintenance"
+  fi
+}
+
+set_ro_mounts() {
+  mount -o remount,ro "$EFI_MOUNT" || true
+  mount -o remount,ro "$CONFIG_MOUNT" || true
+}
+
+set_rw_mounts() {
+  mount -o remount,rw "$CONFIG_MOUNT"
+  mount -o remount,rw "$EFI_MOUNT"
+}
+
+cmd="${1:-status}"
+case "$cmd" in
+  status)
+    ensure_mounts
+    echo "Current mode: $(current_mode)"
+    echo "Default next-boot label: $(get_default_label)"
+    echo "One-shot next mode: $(get_next_mode)"
+    ;;
+  next-maintenance)
+    require_root
+    ensure_mounts
+    set_rw_mounts
+    echo "maintenance-once" >"$NEXT_FILE"
+    set_default_label maintenance
+    sync
+    set_ro_mounts
+    echo "Scheduled one-shot maintenance boot."
+    ;;
+  cancel-next)
+    require_root
+    ensure_mounts
+    set_rw_mounts
+    rm -f "$NEXT_FILE"
+    set_default_label immutable
+    sync
+    set_ro_mounts
+    echo "Cancelled one-shot boot and restored immutable default."
+    ;;
+  set-default)
+    require_root
+    mode="${2:-}"
+    case "$mode" in
+      immutable|maintenance) ;;
+      *)
+        echo "set-default requires immutable|maintenance" >&2
+        exit 1
+        ;;
+    esac
+    ensure_mounts
+    set_rw_mounts
+    set_default_label "$mode"
+    sync
+    set_ro_mounts
+    echo "Default boot label set to: $mode"
+    ;;
+  reboot-maintenance)
+    "$0" next-maintenance
+    exec /sbin/reboot
+    ;;
+  reboot-immutable)
+    "$0" cancel-next
+    exec /sbin/reboot
+    ;;
+  *)
+    usage >&2
+    exit 1
+    ;;
+esac
+EOF
+chmod 0755 "$ROOTFS_DIR/usr/local/sbin/e54c-boot-mode"
+
+cat >"$ROOTFS_DIR/usr/local/sbin/e54c-bootmode-oneshot-apply" <<'EOF'
+#!/bin/sh
+set -eu
+
+EFI_MOUNT="/boot/efi"
+CONFIG_MOUNT="/media/config"
+EXTLINUX_CONF="$EFI_MOUNT/extlinux/extlinux.conf"
+NEXT_FILE="$CONFIG_MOUNT/boot-mode.next"
+
+[ -f "$NEXT_FILE" ] || exit 0
+[ -f "$EXTLINUX_CONF" ] || exit 0
+
+if [ "$(cat "$NEXT_FILE" 2>/dev/null || true)" != "maintenance-once" ]; then
+  exit 0
+fi
+
+# Clear one-shot only after we have successfully booted the maintenance profile.
+if grep -qw 'overlaytmpfs=yes' /proc/cmdline; then
+  exit 0
+fi
+
+mountpoint -q "$CONFIG_MOUNT" || exit 0
+mountpoint -q "$EFI_MOUNT" || exit 0
+
+mount -o remount,rw "$CONFIG_MOUNT" || exit 0
+if ! mount -o remount,rw "$EFI_MOUNT"; then
+  mount -o remount,ro "$CONFIG_MOUNT" || true
+  exit 0
+fi
+
+tmp="$(mktemp)"
+awk '
+  BEGIN { done=0 }
+  /^[[:space:]]*DEFAULT[[:space:]]+/ && done==0 {
+    print "DEFAULT immutable"
+    done=1
+    next
+  }
+  { print }
+  END {
+    if (done==0) exit 2
+  }
+' "$EXTLINUX_CONF" >"$tmp"
+cat "$tmp" >"$EXTLINUX_CONF"
+rm -f "$tmp"
+rm -f "$NEXT_FILE"
+sync
+
+mount -o remount,ro "$EFI_MOUNT" || true
+mount -o remount,ro "$CONFIG_MOUNT" || true
+EOF
+chmod 0755 "$ROOTFS_DIR/usr/local/sbin/e54c-bootmode-oneshot-apply"
+
+cat >"$ROOTFS_DIR/etc/init.d/e54c-bootmode-oneshot" <<'EOF'
+#!/sbin/openrc-run
+
+name="e54c-bootmode-oneshot"
+description="Apply one-shot maintenance boot mode and restore immutable default"
+
+depend() {
+  need localmount
+  before networking
+}
+
+start() {
+  ebegin "Applying one-shot boot mode state"
+  /usr/local/sbin/e54c-bootmode-oneshot-apply >/dev/null 2>&1 || true
+  eend 0
+}
+EOF
+chmod 0755 "$ROOTFS_DIR/etc/init.d/e54c-bootmode-oneshot"
+enable_service e54c-bootmode-oneshot boot
+
 # busybox-suid installs bbsuid as execute-only in usermode; make it readable for tar packaging.
 if [ -f "$ROOTFS_DIR/bin/bbsuid" ]; then
   chmod 4755 "$ROOTFS_DIR/bin/bbsuid"

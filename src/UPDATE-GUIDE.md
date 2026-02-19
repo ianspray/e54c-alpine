@@ -105,6 +105,8 @@ Use maintenance mode when you intentionally want writes to base storage.
 
 1. At U-Boot extlinux menu, select:
    - `Alpine Linux (maintenance, writable rootfs)`
+2. From a running immutable system (recommended for remote ops):
+   - `e54c-boot-mode reboot-maintenance`
 2. Or build image with maintenance as default:
 
 ```bash
@@ -121,7 +123,16 @@ DEFAULT_BOOT_MODE=maintenance scripts/assemble-e54c-image.sh
 
 1. Reboot and select:
    - `Alpine Linux (immutable root, overlaytmpfs)`
+2. Or from maintenance shell:
+   - `e54c-boot-mode reboot-immutable`
 2. Verify root command line includes `overlaytmpfs=yes`.
+
+### One-Shot Behavior
+
+1. `e54c-boot-mode reboot-maintenance` sets next boot label to maintenance.
+2. Early boot service `e54c-bootmode-oneshot` runs in maintenance mode and restores default label to immutable.
+3. A second reboot returns to immutable mode automatically.
+4. Native `reboot`/`shutdown` commands do not directly select extlinux labels; use the helper script.
 
 ## 4) Update Strategy for Running Systems
 
