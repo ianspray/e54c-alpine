@@ -19,6 +19,7 @@ SPI_UBOOT_ITB_LBA="${SPI_UBOOT_ITB_LBA:-16384}"
 SPI_IMAGE_SIZE_BYTES="${SPI_IMAGE_SIZE_BYTES:-16777216}"
 SPI_IMAGE_STRATEGY="${SPI_IMAGE_STRATEGY:-base-image}"
 SPI_UBOOT_SOURCE="${SPI_UBOOT_SOURCE:-base}"
+SPI_FDT_SOURCE="${SPI_FDT_SOURCE:-base}"
 SPI_BASE_IMAGE_URL="${SPI_BASE_IMAGE_URL:-https://dl.radxa.com/e/e54c/images/radxa-e54c-spi-flash-image.img}"
 SPI_BASE_IMAGE_PATH="${SPI_BASE_IMAGE_PATH:-$REPO_ROOT/build/downloads/radxa-e54c-spi-flash-image.img}"
 
@@ -41,6 +42,14 @@ case "$SPI_UBOOT_SOURCE" in
     ;;
   *)
     echo "Invalid SPI_UBOOT_SOURCE=$SPI_UBOOT_SOURCE (expected: base or build)" >&2
+    exit 1
+    ;;
+esac
+case "$SPI_FDT_SOURCE" in
+  base|build)
+    ;;
+  *)
+    echo "Invalid SPI_FDT_SOURCE=$SPI_FDT_SOURCE (expected: base or build)" >&2
     exit 1
     ;;
 esac
@@ -125,6 +134,13 @@ if [ "$SPI_UBOOT_SOURCE" = "base" ]; then
     FIT_REPACK_REASON="base-uboot"
   fi
 fi
+if [ "$SPI_FDT_SOURCE" = "base" ]; then
+  if [ -n "$FIT_REPACK_REASON" ]; then
+    FIT_REPACK_REASON="$FIT_REPACK_REASON,base-fdt"
+  else
+    FIT_REPACK_REASON="base-fdt"
+  fi
+fi
 
 if [ -n "$FIT_REPACK_REASON" ]; then
   if [ "$SPI_IMAGE_STRATEGY" != "base-image" ]; then
@@ -148,7 +164,8 @@ if [ -n "$FIT_REPACK_REASON" ]; then
   idx_atf1="$(fit_find_image_index "$BASE_UBOOT_ITB" "$DUMPIMAGE_BIN" "atf-1")"
   idx_atf2="$(fit_find_image_index "$BASE_UBOOT_ITB" "$DUMPIMAGE_BIN" "atf-2")"
   idx_atf3="$(fit_find_image_index "$BASE_UBOOT_ITB" "$DUMPIMAGE_BIN" "atf-3")"
-  if [ -z "$idx_uboot" ] || [ -z "$idx_atf1" ] || [ -z "$idx_atf2" ] || [ -z "$idx_atf3" ]; then
+  idx_fdt="$(fit_find_image_index "$BASE_UBOOT_ITB" "$DUMPIMAGE_BIN" "fdt")"
+  if [ -z "$idx_uboot" ] || [ -z "$idx_atf1" ] || [ -z "$idx_atf2" ] || [ -z "$idx_atf3" ] || [ -z "$idx_fdt" ]; then
     echo "Failed to find required entries in base SPI image FIT." >&2
     exit 1
   fi
@@ -170,6 +187,11 @@ if [ -n "$FIT_REPACK_REASON" ]; then
   "$DUMPIMAGE_BIN" -i "$BASE_UBOOT_ITB" -T flat_dt -p "$idx_atf1" -o "$repack_dir/atf-1.bin" "$repack_dir/_extract.bin" >/dev/null
   "$DUMPIMAGE_BIN" -i "$BASE_UBOOT_ITB" -T flat_dt -p "$idx_atf2" -o "$repack_dir/atf-2.bin" "$repack_dir/_extract.bin" >/dev/null
   "$DUMPIMAGE_BIN" -i "$BASE_UBOOT_ITB" -T flat_dt -p "$idx_atf3" -o "$repack_dir/atf-3.bin" "$repack_dir/_extract.bin" >/dev/null
+  if [ "$SPI_FDT_SOURCE" = "base" ]; then
+    "$DUMPIMAGE_BIN" -i "$BASE_UBOOT_ITB" -T flat_dt -p "$idx_fdt" -o "$repack_dir/u-boot.dtb" "$repack_dir/_extract.bin" >/dev/null
+  else
+    cp "$UBOOT_WORKDIR/u-boot.dtb" "$repack_dir/u-boot.dtb"
+  fi
 
   cat >"$repack_dir/u-boot-repack.its" <<EOF
 /dts-v1/;
@@ -239,7 +261,6 @@ if [ -n "$FIT_REPACK_REASON" ]; then
 };
 EOF
 
-  cp "$UBOOT_WORKDIR/u-boot.dtb" "$repack_dir/u-boot.dtb"
   (
     cd "$repack_dir"
     "$MKIMAGE_BIN" -f u-boot-repack.its "$UBOOT_WORKDIR/u-boot.itb" >/dev/null
@@ -364,6 +385,7 @@ dtc -I dtb -O dts -o "$DTS_CHECK" "$ARTIFACT_DIR/u-boot.dtb" >/dev/null 2>&1 || 
   echo "patch_state=$PATCH_STATE"
   echo "cross_compile=$CROSS_COMPILE"
   echo "spi_uboot_source=$SPI_UBOOT_SOURCE"
+  echo "spi_fdt_source=$SPI_FDT_SOURCE"
   echo "fit_atf_repacked=$ATF_REPACKED"
   echo "fit_repack_reason=${FIT_REPACK_REASON:-none}"
   echo "spi_image_strategy=$SPI_IMAGE_STRATEGY"
