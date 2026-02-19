@@ -54,7 +54,7 @@ sudo scripts/write-image-to-nvme.sh --device /dev/nvme0n1 --dry-run
 - Alpine rootfs defaults:
   - Serial-only login on `ttyFIQ0` at `1500000` baud
   - `openrc` enabled for boot + networking + sshd
-  - DHCP enabled on all E54C DSA front-panel ports: `wan`, `lan1`, `lan2`, `lan3`
+  - E54C network defaults: DHCP client on `wan`; `lan1`/`lan2`/`lan3` set to `manual`
   - E54C DSA/Realtek modules are force-loaded via `/etc/modules` at boot
   - Boot-time console/login banner prints currently assigned global IP addresses
   - `lbu` configured with `LBU_MEDIA=config`

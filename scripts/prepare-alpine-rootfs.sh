@@ -116,18 +116,18 @@ iface lo inet loopback
 
 # Radxa E54C uses DSA port names from DT:
 # wan, lan1, lan2, lan3
-# Bring up DHCP on all physical ports so any connected port can provide uplink.
+# WAN is DHCP client; LAN ports are manual for local services (e.g. DHCP server).
 auto wan
 iface wan inet dhcp
 
 auto lan1
-iface lan1 inet dhcp
+iface lan1 inet manual
 
 auto lan2
-iface lan2 inet dhcp
+iface lan2 inet manual
 
 auto lan3
-iface lan3 inet dhcp
+iface lan3 inet manual
 EOF
 
 if [ "$E54C_FORCE_DSA_MODULES" = "1" ]; then
