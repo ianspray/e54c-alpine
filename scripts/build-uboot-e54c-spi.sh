@@ -19,7 +19,7 @@ SPI_UBOOT_ITB_LBA="${SPI_UBOOT_ITB_LBA:-16384}"
 SPI_IMAGE_SIZE_BYTES="${SPI_IMAGE_SIZE_BYTES:-16777216}"
 SPI_IMAGE_STRATEGY="${SPI_IMAGE_STRATEGY:-base-image}"
 SPI_UBOOT_SOURCE="${SPI_UBOOT_SOURCE:-base}"
-SPI_FDT_SOURCE="${SPI_FDT_SOURCE:-base}"
+SPI_FDT_SOURCE="${SPI_FDT_SOURCE:-build}"
 SPI_BASE_IMAGE_URL="${SPI_BASE_IMAGE_URL:-https://dl.radxa.com/e/e54c/images/radxa-e54c-spi-flash-image-20250620.img}"
 SPI_BASE_IMAGE_PATH="${SPI_BASE_IMAGE_PATH:-$REPO_ROOT/build/downloads/radxa-e54c-spi-flash-image-20250620.img}"
 
@@ -91,6 +91,8 @@ fi
 
 git -C "$UBOOT_WORKDIR" fetch --tags origin
 git -C "$UBOOT_WORKDIR" checkout -B "$UBOOT_BRANCH" "origin/$UBOOT_BRANCH"
+# Ensure re-runs start from a clean DTS state before applying the USB patch.
+git -C "$UBOOT_WORKDIR" checkout -- arch/arm/dts/rk3588s-radxa-e54c.dts
 
 if git -C "$UBOOT_WORKDIR" apply --check "$PATCH_FILE" >/dev/null 2>&1; then
   git -C "$UBOOT_WORKDIR" apply "$PATCH_FILE"
