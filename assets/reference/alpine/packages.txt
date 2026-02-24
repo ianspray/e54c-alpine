@@ -6,3 +6,4 @@ alpine-conf
 openssh
 mtd-utils
 dosfstools
+e2fsprogs
