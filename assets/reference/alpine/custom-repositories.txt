@@ -7,3 +7,4 @@
 #
 # Example (HTTPS host):
 # https://updates.example.com/e54c/apk/v3.23
+/home/iws/codex/e54c-alpine/build/apk-repo/v3.23

@@ -1,0 +1,17 @@
+#!/sbin/openrc-run
+
+name="e54c-partition-mount"
+description="Check a hardware device for partitions with labels, and mount them"
+command_background="no"
+
+depend() {
+  need devfs
+  need localmount
+  after modules
+}
+
+start() {
+  ebegin "Mouting additional storage volumes"
+  /usr/sbin/e54c-partition-mount
+  eend 0
+}
