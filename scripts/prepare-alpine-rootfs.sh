@@ -26,6 +26,7 @@ ENABLE_BOOT_NTP_SYNC="${ENABLE_BOOT_NTP_SYNC:-1}"
 BOOT_NTP_SERVERS="${BOOT_NTP_SERVERS:-pool.ntp.org time.cloudflare.com time.google.com}"
 E54C_FORCE_DSA_MODULES="${E54C_FORCE_DSA_MODULES:-1}"
 MOTD_TEMPLATE_FILE="${MOTD_TEMPLATE_FILE:-$REPO_ROOT/assets/reference/alpine/motd-main}"
+ENFORCE_IMMUTABLE_ROOT="${ENFORCE_IMMUTABLE_ROOT:-1}"
 
 DOWNLOAD_DIR="${DOWNLOAD_DIR:-$REPO_ROOT/build/downloads}"
 ROOTFS_DIR="${ROOTFS_DIR:-$REPO_ROOT/build/alpine-rootfs}"
@@ -603,6 +604,43 @@ start() {
 EOF
 chmod 0755 "$ROOTFS_DIR/etc/init.d/e54c-bootmode-oneshot"
 enable_service e54c-bootmode-oneshot boot
+
+if [ "$ENFORCE_IMMUTABLE_ROOT" = "1" ]; then
+  cat >"$ROOTFS_DIR/etc/init.d/e54c-root-mode" <<'EOF'
+#!/sbin/openrc-run
+
+name="e54c-root-mode"
+description="Apply immutable/maintenance root mount mode"
+
+depend() {
+  need localmount
+  before networking
+}
+
+start() {
+  ebegin "Applying root mount mode"
+
+  case " $(cat /proc/cmdline 2>/dev/null) " in
+    *" overlaytmpfs=yes "*)
+      root_fs="$(findmnt -n -o FSTYPE / 2>/dev/null || true)"
+      if [ "$root_fs" = "overlay" ]; then
+        einfo "Immutable mode active with overlay rootfs."
+      else
+        if mount -o remount,ro / 2>/dev/null; then
+          ewarn "overlaytmpfs requested but overlay rootfs not active; remounted / read-only."
+        else
+          ewarn "overlaytmpfs requested but could not remount / read-only."
+        fi
+      fi
+      ;;
+  esac
+
+  eend 0
+}
+EOF
+  chmod 0755 "$ROOTFS_DIR/etc/init.d/e54c-root-mode"
+  enable_service e54c-root-mode boot
+fi
 
 # busybox-suid installs bbsuid as execute-only in usermode; make it readable for tar packaging.
 if [ -f "$ROOTFS_DIR/bin/bbsuid" ]; then

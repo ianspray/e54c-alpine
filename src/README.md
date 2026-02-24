@@ -91,6 +91,7 @@ sudo scripts/write-image-to-nvme.sh --device /dev/nvme0n1 --dry-run
   - Non-blocking one-shot NTP sync is triggered at boot after networking (`e54c-ntp-sync`)
   - Default boot DTB is `rk3588s-radxa-e54c-spi.dtb`
   - Immutable runtime mode by default: kernel cmdline uses `overlaytmpfs=yes` and read-only lower root
+  - If overlay root is not active, boot service `e54c-root-mode` remounts `/` read-only for immutable boots
   - Maintenance boot mode available in extlinux menu with writable rootfs (`rw`, no overlay)
   - One-shot mode switch helper available on target: `/usr/local/sbin/e54c-boot-mode`
   - One-shot reboot workflow auto-restores default boot label to immutable after maintenance boot
