@@ -2,7 +2,7 @@
 # Maintainer: IWS <iws@toothless.local>
 pkgname=e54c-partition-mount-service
 pkgver=0.1.0
-pkgrel=0
+pkgrel=1
 pkgdesc="E54C OpenRC NVMe Partition mounter"
 url="https://example.invalid/e54c-alpine"
 arch="aarch64"
@@ -25,6 +25,6 @@ package() {
 
 sha512sums="
 4aadae3cf6a85cd291c131f9792a88024f6547dad26696b491d64def739b73df6d7a184aca47862eb9ea7914d8b6462097051f99841f96a8b9f1d4b648d4e0d0  e54c-partition-mount.confd
-37353f22ec17205a2fa39715f3a0acaa938593fd741d00b216e5758aec2490a3ccca14d5175be453d18ddb1e0932357d80b8b2cb96932d2c427c9925d332dde1  e54c-partition-mount.initd
+67b3408af55deb8d0c666bc561a7be5c5f4cb2e89cf4afb4949b37ab9b321512b92f95e59cd33905319ce80f598e30185f1cb82cefbc7d301a66baf1b7e02d1c  e54c-partition-mount.initd
 2b2d881c4c5911712ab39612956f4a43edb59e8c78758f9edfbcc5036babf941edf2750e5aebc607ef5c1f9b44043f5be8cfb812a2524056eee5f78220952ca5  e54c-partition-mount.sh
 "

@@ -295,6 +295,7 @@ for svc in networking sshd; do
 done
 enable_service e54c-dev-perms boot
 enable_service e54c-bootmode-oneshot boot
+enable_service e54c-partition-mount boot
 if [ "$ENFORCE_IMMUTABLE_ROOT" = "1" ]; then
   enable_service e54c-root-mode boot
 fi

@@ -12,7 +12,7 @@ depend() {
 }
 
 start() {
-  ebegin "Mouting additional storage volumes"
+  ebegin "Mounting additional storage volumes"
   /usr/sbin/e54c-partition-mount
-  eend 0
+  eend $?
 }
