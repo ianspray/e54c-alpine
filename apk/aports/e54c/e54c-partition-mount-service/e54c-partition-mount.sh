@@ -16,6 +16,9 @@ mount_options="$(awk -F= '/^[[:space:]]*mount_options[[:space:]]*=/{gsub(/[[:spa
 # hardware interface requested that have a non-empty LABEL
 to_be_mounted="$(lsblk -rn -o PATH,LABEL -Q 'TYPE=="part" && MOUNTPOINT!~".+" && LABEL=~".+" && FSTYPE!~"swap"' $check_hardware_path 2>/dev/null || true)"
 
+# Nothing to do when no matching partitions exist.
+[ -n "$to_be_mounted" ] || exit 0
+
 # mount all the unmounted partitions with the name of the label
 # at the starting offset supplied in the config file
 printf '%s\n' "${to_be_mounted}" | while IFS=' ' read -r part label; do
