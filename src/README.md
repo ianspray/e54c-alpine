@@ -13,6 +13,7 @@ Run commands from the repository root.
 
 ```bash
 scripts/check-tooling.sh
+scripts/fetch-uboot-reference-assets.sh
 scripts/build-apk-repo.sh
 scripts/build-kernel-e54c.sh
 scripts/prepare-alpine-rootfs.sh
@@ -91,6 +92,8 @@ All scripts in `scripts/` and their primary purpose:
 
 - `scripts/check-tooling.sh`
   - Verify required host build tools are installed.
+- `scripts/fetch-uboot-reference-assets.sh`
+  - Download/extract `idbloader.img`, `u-boot.itb`, and `rkboot.bin` into `assets/reference/u-boot`.
 - `scripts/fetch-radxa-kernel.sh`
   - Clone/update the Radxa kernel source tree used by kernel builds.
 - `scripts/build-kernel-e54c.sh`
@@ -118,6 +121,7 @@ Most common operating sequence:
 
 ```bash
 scripts/check-tooling.sh
+scripts/fetch-uboot-reference-assets.sh
 scripts/build-apk-repo.sh
 scripts/build-kernel-e54c.sh
 scripts/prepare-alpine-rootfs.sh
