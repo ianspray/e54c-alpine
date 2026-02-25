@@ -16,6 +16,9 @@
   - Always clearly present the problem that needs to be addressed
   - Additional discussion may be required after problem presentation before an action can be chosen
 - A more modern Linux kernel is always more useful than a stock Radxa one
+- Once the build completes, and a summary of the changes has been made, commit all changes to the local repo and ensur
+e that the change summary is in the body of the commit message
+- When creating a local git repo, use `main` for the primary branch, and NOT `master`
 
 ## Architecture
 - Use a Debian AArch64 base system for constructing the initial system
@@ -27,7 +30,19 @@
 - It is expected that custom scripting will be required
 - The ability to take a newer version of Alpine and re-run the system in the future is a primary design aim
 - When building a Linux kernel and modules, the modules should be built in a way that allows easy insertion via modprobe
-
+- Ensure there is a formal build process for custom APK images
+  - Capture any custom boot scripts into an APK
+  - Link the scroipts into the OpenRC startup process
+  - Prefer APK capture over modification of the base Alpine image
+- Use the Alpine diskless mode (tmpfs RAM execution)
+- Maintain both a regular boot (main) image, and a USB Updater image
+  - The USB Updater should have an embedded copy of the main image
+  - The system u-boot shoudl boot from USB by preference if it has a valid image
+  - Once started, the USB updater should emit progress markers to the serial console
+  - The Updater must reflash the internal NVMe image with the copy it carries
+  - After updating, the USB Updater should make itself non-bootable as far as u-boot is concerned
+  - It should then reboot the system, which will then skip the USB drive and contonue on to boot into NVMe
+- The E54C SPI u-boot image may need to be updated to enable USB booting
 
 ## Guides
 - Radxa documentation about the E54C: https://docs.radxa.com/en/e/e54c
