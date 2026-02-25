@@ -55,3 +55,9 @@ scripts/build-usb-updater-image.sh
 
 - `.gitignore` already marks generated trees (`build/`, `work/`, `src/radxa-kernel/`, `src/radxa-kernel-e54c/`) as non-tracked.
 - If disk space cleanup is needed, deleting `build/` is the highest-impact safe reset.
+
+# Copyright and Licence
+
+Code created by the project &copy; 2026 Ian Spray and is MIT licenced (see [LICENCE.md](LICENCE.md) for details).
+
+There may be signifcant amounts of non-project code present as this tool modifies many other projects, and for those portions the original licence of that code still applies.
