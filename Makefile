@@ -8,6 +8,16 @@ SCRIPTS_DIR := $(REPO_ROOT)/scripts
 ASSETS_DIR := $(REPO_ROOT)/assets/reference
 STAMPS_DIR := $(REPO_ROOT)/build/.stamps
 
+DEFAULT_CUSTOM_APK_KEYS_DIR := assets/reference/alpine/custom-keys
+DEFAULT_ROOT_AUTHORIZED_KEYS_FILE := assets/reference/alpine/root_authorized_keys
+
+CUSTOM_APK_KEYS_DIR_FOR_HASH := $(if $(filter undefined,$(origin CUSTOM_APK_KEYS_DIR)),$(DEFAULT_CUSTOM_APK_KEYS_DIR),$(CUSTOM_APK_KEYS_DIR))
+ROOT_AUTHORIZED_KEYS_FILE_FOR_HASH := $(if $(filter undefined,$(origin ROOT_AUTHORIZED_KEYS_FILE)),$(DEFAULT_ROOT_AUTHORIZED_KEYS_FILE),$(ROOT_AUTHORIZED_KEYS_FILE))
+
+CUSTOM_APK_KEYS_DIR_ENV := $(if $(filter undefined,$(origin CUSTOM_APK_KEYS_DIR)),,CUSTOM_APK_KEYS_DIR=$(CUSTOM_APK_KEYS_DIR))
+ROOT_AUTHORIZED_KEYS_FILE_ENV := $(if $(filter undefined,$(origin ROOT_AUTHORIZED_KEYS_FILE)),,ROOT_AUTHORIZED_KEYS_FILE=$(ROOT_AUTHORIZED_KEYS_FILE))
+APK_KEYS_EXPORT_DIR_ENV := $(if $(filter undefined,$(origin APK_KEYS_EXPORT_DIR)),,APK_KEYS_EXPORT_DIR=$(APK_KEYS_EXPORT_DIR))
+
 MAIN_IMAGE ?= $(REPO_ROOT)/build/e54c-alpine-custom.img
 USB_UPDATER_IMAGE ?= $(REPO_ROOT)/build/e54c-alpine-usb-updater.img
 
@@ -76,8 +86,8 @@ $(APK_INPUTS_HASH): FORCE | $(STAMPS_DIR)
 	    scripts/check-tooling.sh \
 	    assets/reference/alpine/custom-packages.txt \
 	    assets/reference/alpine/custom-repositories.txt; \
-	  if [ -d assets/reference/alpine/custom-keys ]; then \
-	    find assets/reference/alpine/custom-keys -type f -print0; \
+	  if [ -d "$(CUSTOM_APK_KEYS_DIR_FOR_HASH)" ]; then \
+	    find "$(CUSTOM_APK_KEYS_DIR_FOR_HASH)" -type f -print0; \
 	  fi; \
 	} | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $$1}' >"$@.tmp"
 	@if [ ! -f "$@" ] || ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
@@ -105,11 +115,11 @@ $(ROOTFS_INPUTS_HASH): FORCE | $(STAMPS_DIR)
 	    assets/reference/alpine/custom-repositories.txt \
 	    assets/reference/alpine/motd-main \
 	    assets/reference/alpine/motd-updater; \
-	  if [ -f assets/reference/alpine/root_authorized_keys ]; then \
-	    printf '%s\0' assets/reference/alpine/root_authorized_keys; \
+	  if [ -n "$(ROOT_AUTHORIZED_KEYS_FILE_FOR_HASH)" ] && [ -f "$(ROOT_AUTHORIZED_KEYS_FILE_FOR_HASH)" ]; then \
+	    printf '%s\0' "$(ROOT_AUTHORIZED_KEYS_FILE_FOR_HASH)"; \
 	  fi; \
-	  if [ -d assets/reference/alpine/custom-keys ]; then \
-	    find assets/reference/alpine/custom-keys -type f -print0; \
+	  if [ -d "$(CUSTOM_APK_KEYS_DIR_FOR_HASH)" ]; then \
+	    find "$(CUSTOM_APK_KEYS_DIR_FOR_HASH)" -type f -print0; \
 	  fi; \
 	} | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $$1}' >"$@.tmp"
 	@if [ ! -f "$@" ] || ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
@@ -139,7 +149,7 @@ $(USB_IMAGE_INPUTS_HASH): FORCE | $(STAMPS_DIR)
 	@if [ ! -f "$@" ] || ! cmp -s "$@.tmp" "$@"; then mv "$@.tmp" "$@"; else rm -f "$@.tmp"; fi
 
 $(APK_REPO_STAMP): $(APK_INPUTS_HASH) | $(STAMPS_DIR)
-	"$(SCRIPTS_DIR)/build-apk-repo.sh"
+	$(APK_KEYS_EXPORT_DIR_ENV) $(SCRIPTS_DIR)/build-apk-repo.sh
 	touch "$@"
 
 $(UBOOT_ASSETS_STAMP): $(UBOOT_INPUTS_HASH) | $(STAMPS_DIR)
@@ -154,7 +164,7 @@ $(KERNEL_STAMP): $(KERNEL_INPUTS_HASH) | $(STAMPS_DIR)
 	touch "$@"
 
 $(ROOTFS_STAMP): $(ROOTFS_INPUTS_HASH) $(APK_REPO_STAMP) | $(STAMPS_DIR)
-	"$(SCRIPTS_DIR)/prepare-alpine-rootfs.sh"
+	$(ROOT_AUTHORIZED_KEYS_FILE_ENV) $(CUSTOM_APK_KEYS_DIR_ENV) $(SCRIPTS_DIR)/prepare-alpine-rootfs.sh
 	touch "$@"
 
 $(MAIN_IMAGE_STAMP): $(MAIN_IMAGE_INPUTS_HASH) $(UBOOT_ASSETS_STAMP) $(KERNEL_STAMP) $(ROOTFS_STAMP) | $(STAMPS_DIR)

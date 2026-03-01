@@ -185,6 +185,13 @@ scripts/build-usb-updater-image.sh
 - Add custom APK signing keys used by those repositories:
   - Place `.rsa.pub` key files in `assets/reference/alpine/custom-keys/`
   - Or build locally with `scripts/build-apk-repo.sh` (Podman) and use the auto-detected local repo in `build/apk-repo/v3.23`
+- Keep keys local (not in git) while using `make`:
+  - Store local files under `build/local-secrets/` (already ignored by `.gitignore`), for example:
+    - `build/local-secrets/root_authorized_keys`
+    - `build/local-secrets/custom-keys/*.rsa.pub`
+  - Run make with overrides:
+    - `ROOT_AUTHORIZED_KEYS_FILE="$PWD/build/local-secrets/root_authorized_keys" CUSTOM_APK_KEYS_DIR="$PWD/build/local-secrets/custom-keys" APK_KEYS_EXPORT_DIR="$PWD/build/local-secrets/custom-keys" make images`
+  - `Makefile` stamp hashing follows these overrides, so changing local key files triggers rebuilds automatically.
 - Inject root SSH authorized keys during image build:
   - `ROOT_AUTHORIZED_KEYS_FILE=/path/to/authorized_keys scripts/prepare-alpine-rootfs.sh`
 - Disable default key injection:
