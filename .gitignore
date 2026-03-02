@@ -11,3 +11,5 @@ assets/reference/u-boot/*
 !assets/reference/u-boot/patches/
 assets/reference/u-boot/patches/*
 !assets/reference/u-boot/patches/*.patch
+assets/reference/alpine/custom-keys/builder-699ddcb1.rsa.pub
+assets/reference/alpine/root_authorized_keys
