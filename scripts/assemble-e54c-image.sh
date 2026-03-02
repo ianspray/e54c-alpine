@@ -303,7 +303,7 @@ fi
 
 # Keep bootargs intentionally short and put root first.
 # Some U-Boot extlinux paths appear to truncate long APPEND lines.
-CMDLINE_BASE_DEFAULT="root=PARTLABEL=${ROOTFS_PARTLABEL} rootfstype=ext4 rootwait console=ttyFIQ0,1500000n8 earlycon"
+CMDLINE_BASE_DEFAULT="root=PARTLABEL=${ROOTFS_PARTLABEL} rootfstype=ext4 rootwait console=ttyFIQ0,1500000n8 earlycon nvme_core.default_ps_max_latency_us=0 pcie_aspm=off"
 CMDLINE_BASE="${KERNEL_CMDLINE_BASE:-$CMDLINE_BASE_DEFAULT}"
 CMDLINE_IMMUTABLE_DEFAULT="${CMDLINE_BASE} ro diskless=yes"
 CMDLINE_MAINTENANCE_DEFAULT="${CMDLINE_BASE} rw"

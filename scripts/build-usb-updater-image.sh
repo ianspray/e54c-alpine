@@ -111,8 +111,8 @@ ROOTFS_PARTLABEL="$UPDATER_ROOT_PARTLABEL" \
 ROOTFS_MKFS_LABEL="$UPDATER_ROOT_PARTLABEL" \
 INITRAMFS_NAME="$UPDATER_INITRAMFS_NAME" \
 DEFAULT_BOOT_MODE=maintenance \
-KERNEL_CMDLINE_MAINTENANCE="root=PARTLABEL=$UPDATER_ROOT_PARTLABEL rootfstype=ext4 rootwait ro diskless=yes console=ttyFIQ0,1500000n8 earlycon" \
-KERNEL_CMDLINE_IMMUTABLE="root=PARTLABEL=$UPDATER_ROOT_PARTLABEL rootfstype=ext4 rootwait ro diskless=yes console=ttyFIQ0,1500000n8 earlycon" \
+KERNEL_CMDLINE_MAINTENANCE="root=PARTLABEL=$UPDATER_ROOT_PARTLABEL rootfstype=ext4 rootwait ro diskless=yes console=ttyFIQ0,1500000n8 earlycon nvme_core.default_ps_max_latency_us=0 pcie_aspm=off" \
+KERNEL_CMDLINE_IMMUTABLE="root=PARTLABEL=$UPDATER_ROOT_PARTLABEL rootfstype=ext4 rootwait ro diskless=yes console=ttyFIQ0,1500000n8 earlycon nvme_core.default_ps_max_latency_us=0 pcie_aspm=off" \
 "$SCRIPT_DIR/assemble-e54c-image.sh"
 
 tmp_extlinux="$(mktemp)"
@@ -128,7 +128,7 @@ LABEL updater
   LINUX /boot/Image
   INITRD /boot/${UPDATER_INITRAMFS_NAME}
   FDT /boot/dtbs/rockchip/rk3588s-radxa-e54c-spi.dtb
-  APPEND root=PARTLABEL=${UPDATER_ROOT_PARTLABEL} rootfstype=ext4 rootwait ro diskless=yes console=ttyFIQ0,1500000n8 earlycon
+  APPEND root=PARTLABEL=${UPDATER_ROOT_PARTLABEL} rootfstype=ext4 rootwait ro diskless=yes console=ttyFIQ0,1500000n8 earlycon nvme_core.default_ps_max_latency_us=0 pcie_aspm=off
 EOF
 
 guestfish <<EOF

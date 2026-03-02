@@ -212,7 +212,7 @@ scripts/build-usb-updater-image.sh
 - Override default DTB used by extlinux and `/boot/efi/boot/dtbs/rockchip`:
   - `BOARD_DTB_NAME=rk3588s-radxa-e54c.dtb scripts/assemble-e54c-image.sh`
 - Override diskless cmdline:
-  - `KERNEL_CMDLINE_IMMUTABLE='root=PARTLABEL=rootfs rootfstype=ext4 rootwait console=ttyFIQ0,1500000n8 earlycon ro diskless=yes' scripts/assemble-e54c-image.sh`
+  - `KERNEL_CMDLINE_IMMUTABLE='root=PARTLABEL=rootfs rootfstype=ext4 rootwait console=ttyFIQ0,1500000n8 earlycon nvme_core.default_ps_max_latency_us=0 pcie_aspm=off ro diskless=yes' scripts/assemble-e54c-image.sh`
 - Disable initramfs boot path (falls back to direct kernel root mount):
   - `ENABLE_INITRAMFS_BOOT=0 scripts/assemble-e54c-image.sh`
 - Override generated initramfs filename:
