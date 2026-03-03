@@ -26,6 +26,18 @@ One-shot pipeline:
 scripts/build-all-e54c.sh
 ```
 
+Containerized pipeline (recommended for macOS hosts):
+
+```bash
+scripts/run-build-in-container.sh
+```
+
+Override the build command (example: main image only):
+
+```bash
+scripts/run-build-in-container.sh -- make main-image
+```
+
 Build USB updater image (boots from USB, flashes NVMe payload, then reboots):
 
 ```bash
@@ -43,6 +55,14 @@ Build/sign all custom APK packages in `apk/aports`:
 ```bash
 scripts/build-apk-repo.sh
 ```
+
+Container notes:
+
+- `scripts/run-build-in-container.sh` builds `Dockerfile.builder` (Debian Bookworm) and runs your build inside it.
+- The container is run with `--privileged` so the existing Linux-native tooling (`guestfish`, loop/partition tooling, nested `podman` for APK build) can execute.
+- Artifacts are written to the host via bind mount under `build/`.
+- Flashing to USB/NVMe is intentionally not done by the container; use your host-side tooling for that step.
+- Detailed guide: `src/CONTAINER-BUILD.md`
 
 Serve the generated custom APK repository over HTTP:
 
@@ -114,6 +134,8 @@ All scripts in `scripts/` and their primary purpose:
   - Scaffold a new OpenRC-service APK package.
 - `scripts/build-all-e54c.sh`
   - Run the common full build pipeline in one command.
+- `scripts/run-build-in-container.sh`
+  - Build and run the Debian-based containerized pipeline (useful on macOS hosts).
 - `scripts/write-image-to-nvme.sh`
   - Safe writer for raw images to target block devices.
 
