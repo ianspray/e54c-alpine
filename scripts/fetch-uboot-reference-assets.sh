@@ -7,15 +7,20 @@ export PATH="$PATH:/usr/sbin:/sbin"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-UBOOT_ASSETS_DIR="${UBOOT_ASSETS_DIR:-$REPO_ROOT/assets/reference/u-boot}"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/board-config.sh"
+load_board_config
+
+UBOOT_ASSETS_DIR="${UBOOT_ASSETS_DIR:-${BOARD_UBOOT_ASSETS_DIR:-$REPO_ROOT/assets/reference/u-boot}}"
 DOWNLOAD_DIR="${DOWNLOAD_DIR:-$REPO_ROOT/build/downloads}"
-SPI_BASE_IMAGE_URL="${SPI_BASE_IMAGE_URL:-https://dl.radxa.com/e/e54c/images/radxa-e54c-spi-flash-image-20250620.img}"
-SPI_BASE_IMAGE_PATH="${SPI_BASE_IMAGE_PATH:-$DOWNLOAD_DIR/radxa-e54c-spi-flash-image-20250620.img}"
-SPI_IMAGE_SIZE_BYTES="${SPI_IMAGE_SIZE_BYTES:-16777216}"
-SPI_IDBLOADER_LBA="${SPI_IDBLOADER_LBA:-64}"
-SPI_UBOOT_ITB_LBA="${SPI_UBOOT_ITB_LBA:-16384}"
-IDBLOADER_SIZE_BYTES="${IDBLOADER_SIZE_BYTES:-319488}"
-UBOOT_ITB_SIZE_BYTES="${UBOOT_ITB_SIZE_BYTES:-1484288}"
+SPI_BASE_IMAGE_FILENAME="${SPI_BASE_IMAGE_FILENAME:-${BOARD_SPI_BASE_IMAGE_FILENAME_DEFAULT:-radxa-$BOARD-spi-base.img}}"
+SPI_BASE_IMAGE_URL="${SPI_BASE_IMAGE_URL:-${BOARD_SPI_BASE_IMAGE_URL_DEFAULT:-}}"
+SPI_BASE_IMAGE_PATH="${SPI_BASE_IMAGE_PATH:-$DOWNLOAD_DIR/$SPI_BASE_IMAGE_FILENAME}"
+SPI_IMAGE_SIZE_BYTES="${SPI_IMAGE_SIZE_BYTES:-${BOARD_SPI_IMAGE_SIZE_BYTES_DEFAULT:-16777216}}"
+SPI_IDBLOADER_LBA="${SPI_IDBLOADER_LBA:-${BOARD_SPI_IDBLOADER_LBA_DEFAULT:-64}}"
+SPI_UBOOT_ITB_LBA="${SPI_UBOOT_ITB_LBA:-${BOARD_SPI_UBOOT_ITB_LBA_DEFAULT:-16384}}"
+IDBLOADER_SIZE_BYTES="${IDBLOADER_SIZE_BYTES:-${BOARD_IDBLOADER_SIZE_BYTES_DEFAULT:-319488}}"
+UBOOT_ITB_SIZE_BYTES="${UBOOT_ITB_SIZE_BYTES:-${BOARD_UBOOT_ITB_SIZE_BYTES_DEFAULT:-1484288}}"
 
 FORCE_DOWNLOAD=0
 FORCE_OVERWRITE=0
@@ -24,17 +29,18 @@ usage() {
   cat <<'EOF'
 Usage: scripts/fetch-uboot-reference-assets.sh [--force-download] [--force-overwrite]
 
-Downloads Radxa E54C SPI image and extracts:
+Downloads board SPI image and extracts:
   - idbloader.img
   - u-boot.itb
 
 Destination:
-  assets/reference/u-boot/
+  board-specific UBOOT_ASSETS_DIR
 
 Environment overrides:
   UBOOT_ASSETS_DIR
   DOWNLOAD_DIR
   SPI_BASE_IMAGE_URL
+  SPI_BASE_IMAGE_FILENAME
   SPI_BASE_IMAGE_PATH
   SPI_IMAGE_SIZE_BYTES
   SPI_IDBLOADER_LBA
@@ -103,11 +109,15 @@ download_spi_base_if_needed() {
   SPI_CHECKED=1
 
   if [ ! -f "$SPI_BASE_IMAGE_PATH" ] || [ "$FORCE_DOWNLOAD" -eq 1 ]; then
-    echo "Downloading Radxa SPI base image:"
+    if [ -z "$SPI_BASE_IMAGE_URL" ]; then
+      echo "SPI_BASE_IMAGE_URL is not set for BOARD=$BOARD and no local SPI_BASE_IMAGE_PATH exists." >&2
+      return 1
+    fi
+    echo "Downloading board SPI base image:"
     echo "  URL:  $SPI_BASE_IMAGE_URL"
     echo "  PATH: $SPI_BASE_IMAGE_PATH"
     if ! curl -fL --retry 3 --retry-delay 2 "$SPI_BASE_IMAGE_URL" -o "$SPI_BASE_IMAGE_PATH"; then
-      echo "Failed to download Radxa SPI base image: $SPI_BASE_IMAGE_URL" >&2
+      echo "Failed to download SPI base image: $SPI_BASE_IMAGE_URL" >&2
       SPI_AVAILABLE=0
       return 1
     fi

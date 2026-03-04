@@ -9,15 +9,22 @@ This repository now contains a reproducible pipeline to:
 
 ## Commands
 
-Run commands from the repository root.
+Run commands from the repository root.  
+Select a board with `BOARD=<name>` (default: `e54c`).
 
 ```bash
-scripts/check-tooling.sh
-scripts/fetch-uboot-reference-assets.sh
-scripts/build-apk-repo.sh
-scripts/build-kernel-e54c.sh
-scripts/prepare-alpine-rootfs.sh
-scripts/assemble-e54c-image.sh
+BOARD=e54c scripts/check-tooling.sh
+BOARD=e54c scripts/fetch-uboot-reference-assets.sh
+BOARD=e54c scripts/build-apk-repo.sh
+BOARD=e54c scripts/build-kernel-e54c.sh
+BOARD=e54c scripts/prepare-alpine-rootfs.sh
+BOARD=e54c scripts/assemble-e54c-image.sh
+```
+
+Equivalent:
+
+```bash
+make BOARD=e54c main-image
 ```
 
 One-shot pipeline:
@@ -85,7 +92,7 @@ sudo flashcp -v build/u-boot-artifacts/<stamp>/spi-u-boot-16MiB.img /dev/mtd0
 Write USB updater image to a USB stick:
 
 ```bash
-sudo scripts/write-image-to-nvme.sh --image build/e54c-alpine-usb-updater.img --device /dev/sdX --yes
+sudo BOARD=e54c scripts/write-image-to-nvme.sh --image build/e54c-alpine-usb-updater.img --device /dev/sdX --yes
 ```
 
 Flash the generated image to NVMe:
@@ -113,7 +120,7 @@ All scripts in `scripts/` and their primary purpose:
 - `scripts/check-tooling.sh`
   - Verify required host build tools are installed.
 - `scripts/fetch-uboot-reference-assets.sh`
-  - Download the Radxa E54C SPI image and extract required `idbloader.img` and `u-boot.itb` into `assets/reference/u-boot`.
+  - Download board SPI image and extract required `idbloader.img` and `u-boot.itb` into `boards/<board>/u-boot`.
 - `scripts/fetch-radxa-kernel.sh`
   - Clone/update the Radxa kernel source tree used by kernel builds.
 - `scripts/build-kernel-e54c.sh`
@@ -165,7 +172,7 @@ scripts/build-usb-updater-image.sh
   - `p2` `efi` FAT32, size `300 MiB`
   - `p3` `rootfs` ext4 uses remainder
 - USB updater image details:
-  - Includes compressed payload derived from `build/e54c-alpine-custom.img`
+  - Includes compressed payload derived from `build/<board>-alpine-custom.img`
   - Boots a true diskless updater profile from USB (`diskless=yes` via initramfs)
   - Auto-runs `e54c-usb-nvme-update` service to flash `/dev/nvme0n1`
   - Disables USB boot entries on both EFI (`/extlinux/extlinux.conf`) and rootfs (`/boot/extlinux/extlinux.conf`) after successful flash
@@ -175,7 +182,7 @@ scripts/build-usb-updater-image.sh
   - `openrc` enabled for boot + networking + sshd
   - Non-blocking one-shot NTP sync is triggered at boot after networking (`e54c-ntp-sync`)
   - Default boot DTB is `rk3588s-radxa-e54c-spi.dtb`
-  - Initramfs (`/boot/initramfs-e54c.cpio.gz`) is generated during image assembly
+  - Initramfs (`/boot/initramfs-<board>.cpio.gz`) is generated during image assembly
 - Main image boots a single diskless profile by default (U-Boot option 1 only)
   - Initramfs mounts source root partition read-only, populates tmpfs root, then `switch_root`s into RAM root
   - `mdev` service is not enabled; device discovery is via kernel + `devtmpfs`

@@ -1,0 +1,1 @@
+# ROCK 5B board config placeholder.

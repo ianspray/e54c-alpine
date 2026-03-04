@@ -1,0 +1,12 @@
+# Base networking modules
+af_packet
+ipv6
+
+# Radxa E54C DSA switch stack (front-panel ports wan/lan1/lan2/lan3)
+dsa_core
+tag_rtl4_a
+tag_rtl8_4
+realtek-mdio
+realtek-smi
+rtl8365mb
+rtl8366

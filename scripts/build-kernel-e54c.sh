@@ -7,16 +7,21 @@ export PATH="$PATH:/usr/sbin:/sbin"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/board-config.sh"
+load_board_config
+
 KERNEL_DIR_WAS_SET="${KERNEL_DIR+x}"
 OUT_DIR_WAS_SET="${OUT_DIR+x}"
-KERNEL_DIR="${KERNEL_DIR:-$REPO_ROOT/src/radxa-kernel-e54c}"
+KERNEL_DIR="${KERNEL_DIR:-$REPO_ROOT/src/radxa-kernel-$BOARD}"
 OUT_DIR="${OUT_DIR:-$REPO_ROOT/build/kernel-out}"
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-$REPO_ROOT/build/kernel-artifacts}"
 ARCH="${ARCH:-arm64}"
 CROSS_COMPILE="${CROSS_COMPILE:-}"
 JOBS="${JOBS:-}"
 DEFCONFIG_TARGET="${DEFCONFIG_TARGET:-rockchip_linux_defconfig}"
-FRAGMENT_FILE="${FRAGMENT_FILE:-$REPO_ROOT/assets/reference/radxa/custom-kernel.fragment}"
+FRAGMENT_FILE="${FRAGMENT_FILE:-${BOARD_KERNEL_FRAGMENT_FILE:-$REPO_ROOT/assets/reference/radxa/custom-kernel.fragment}}"
+KERNEL_DTBS="${KERNEL_DTBS:-${BOARD_KERNEL_DTBS:-rk3588s-radxa-e54c.dtb rk3588s-radxa-e54c-spi.dtb}}"
 BUILD_TARGETS="${BUILD_TARGETS:-Image dtbs modules}"
 CASE_INSENSITIVE_WORKSPACE=0
 
@@ -38,15 +43,16 @@ if is_case_insensitive_dir "$REPO_ROOT"; then
   CASE_INSENSITIVE_WORKSPACE=1
   echo "Detected case-insensitive workspace filesystem."
   if [ -z "$KERNEL_DIR_WAS_SET" ]; then
-    KERNEL_DIR="/tmp/radxa-kernel-e54c"
+    KERNEL_DIR="/tmp/radxa-kernel-$BOARD"
     echo "Using case-sensitive kernel checkout: $KERNEL_DIR"
   fi
   if [ -z "$OUT_DIR_WAS_SET" ]; then
-    OUT_DIR="/tmp/e54c-kernel-out"
+    OUT_DIR="/tmp/${BOARD}-kernel-out"
     echo "Using case-sensitive kernel output dir: $OUT_DIR"
   fi
 fi
 
+export BOARD
 export KERNEL_DIR
 
 "$SCRIPT_DIR/check-tooling.sh"
@@ -151,7 +157,7 @@ mkdir -p "$RELEASE_DIR/boot/dtbs/rockchip" "$RELEASE_DIR/rootfs"
 cp "$OUT_DIR/arch/arm64/boot/Image" "$RELEASE_DIR/boot/Image"
 cp "$OUT_DIR/.config" "$RELEASE_DIR/kernel.config"
 
-for dtb in rk3588s-radxa-e54c.dtb rk3588s-radxa-e54c-spi.dtb; do
+for dtb in $KERNEL_DTBS; do
   src="$OUT_DIR/arch/arm64/boot/dts/rockchip/$dtb"
   if [ -f "$src" ]; then
     cp "$src" "$RELEASE_DIR/boot/dtbs/rockchip/$dtb"

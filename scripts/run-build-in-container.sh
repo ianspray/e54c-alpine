@@ -27,8 +27,12 @@ Options:
 Default build command:
   make images
 
+Environment:
+  BOARD                       Board profile to build (default: e54c).
+
 Examples:
   scripts/run-build-in-container.sh
+  BOARD=rock5b scripts/run-build-in-container.sh -- make main-image
   scripts/run-build-in-container.sh -- make main-image
   scripts/run-build-in-container.sh --rebuild-image -- scripts/build-all-e54c.sh
 EOF
@@ -152,6 +156,7 @@ fi
 
 HOST_UID="$(id -u)"
 HOST_GID="$(id -g)"
+BOARD="${BOARD:-e54c}"
 BUILD_CMD_QUOTED="$(printf '%q ' "${BUILD_CMD[@]}")"
 
 echo "Running build in container with runtime: $CONTAINER_RUNTIME"
@@ -161,6 +166,7 @@ echo "Build command: ${BUILD_CMD[*]}"
 "$CONTAINER_RUNTIME" run --rm --privileged \
   -e HOST_UID="$HOST_UID" \
   -e HOST_GID="$HOST_GID" \
+  -e BOARD="$BOARD" \
   -e FIX_PERMS="$FIX_PERMS" \
   -v "$REPO_ROOT:/workspace" \
   -w /workspace \

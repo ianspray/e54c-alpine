@@ -7,6 +7,9 @@ REPO_ROOT := $(abspath .)
 SCRIPTS_DIR := $(REPO_ROOT)/scripts
 ASSETS_DIR := $(REPO_ROOT)/assets/reference
 STAMPS_DIR := $(REPO_ROOT)/build/.stamps
+BOARD ?= e54c
+export BOARD
+BOARD_DIR := boards/$(BOARD)
 
 DEFAULT_CUSTOM_APK_KEYS_DIR := assets/reference/alpine/custom-keys
 DEFAULT_ROOT_AUTHORIZED_KEYS_FILE := assets/reference/alpine/root_authorized_keys
@@ -18,8 +21,8 @@ CUSTOM_APK_KEYS_DIR_ENV := $(if $(filter undefined,$(origin CUSTOM_APK_KEYS_DIR)
 ROOT_AUTHORIZED_KEYS_FILE_ENV := $(if $(filter undefined,$(origin ROOT_AUTHORIZED_KEYS_FILE)),,ROOT_AUTHORIZED_KEYS_FILE=$(ROOT_AUTHORIZED_KEYS_FILE))
 APK_KEYS_EXPORT_DIR_ENV := $(if $(filter undefined,$(origin APK_KEYS_EXPORT_DIR)),,APK_KEYS_EXPORT_DIR=$(APK_KEYS_EXPORT_DIR))
 
-MAIN_IMAGE ?= $(REPO_ROOT)/build/e54c-alpine-custom.img
-USB_UPDATER_IMAGE ?= $(REPO_ROOT)/build/e54c-alpine-usb-updater.img
+MAIN_IMAGE ?= $(REPO_ROOT)/build/$(BOARD)-alpine-custom.img
+USB_UPDATER_IMAGE ?= $(REPO_ROOT)/build/$(BOARD)-alpine-usb-updater.img
 
 APK_INPUTS_HASH := $(STAMPS_DIR)/apk-inputs.sha256
 KERNEL_INPUTS_HASH := $(STAMPS_DIR)/kernel-inputs.sha256
@@ -35,7 +38,7 @@ ROOTFS_STAMP := $(STAMPS_DIR)/rootfs.stamp
 MAIN_IMAGE_STAMP := $(STAMPS_DIR)/main-image.stamp
 USB_IMAGE_STAMP := $(STAMPS_DIR)/usb-image.stamp
 
-UBOOT_ASSETS_DIR ?= $(ASSETS_DIR)/u-boot
+UBOOT_ASSETS_DIR ?= $(REPO_ROOT)/boards/$(BOARD)/u-boot
 UBOOT_REQUIRED_ASSETS := \
   $(UBOOT_ASSETS_DIR)/idbloader.img \
   $(UBOOT_ASSETS_DIR)/u-boot.itb
@@ -61,6 +64,7 @@ usb-updater-image: $(USB_IMAGE_STAMP)
 
 help:
 	@echo "Targets:"
+	@echo "  (set BOARD=<name>, default: e54c)"
 	@echo "  make all                Build main and USB updater images (default)."
 	@echo "  make apk-repo           Build local custom APK repository."
 	@echo "  make uboot-assets       Fetch reference U-Boot artifacts."
@@ -94,10 +98,13 @@ $(APK_INPUTS_HASH): FORCE | $(STAMPS_DIR)
 $(KERNEL_INPUTS_HASH): FORCE | $(STAMPS_DIR)
 	@{ \
 	  printf '%s\0' \
+	    $(BOARD_DIR)/board.env \
 	    scripts/build-kernel-e54c.sh \
 	    scripts/fetch-radxa-kernel.sh \
-	    scripts/check-tooling.sh \
-	    assets/reference/radxa/custom-kernel.fragment; \
+	    scripts/check-tooling.sh; \
+	  if [ -f "$(BOARD_DIR)/kernel/custom-kernel.fragment" ]; then \
+	    printf '%s\0' "$(BOARD_DIR)/kernel/custom-kernel.fragment"; \
+	  fi; \
 	  if [ -d assets/reference/radxa ]; then \
 	    find assets/reference/radxa -maxdepth 1 -type f -name '*defconfig*' -print0; \
 	  fi; \
@@ -107,6 +114,7 @@ $(KERNEL_INPUTS_HASH): FORCE | $(STAMPS_DIR)
 $(ROOTFS_INPUTS_HASH): FORCE | $(STAMPS_DIR)
 	@{ \
 	  printf '%s\0' \
+	    $(BOARD_DIR)/board.env \
 	    scripts/prepare-alpine-rootfs.sh \
 	    scripts/check-tooling.sh \
 	    assets/reference/alpine/packages.txt \
@@ -114,6 +122,12 @@ $(ROOTFS_INPUTS_HASH): FORCE | $(STAMPS_DIR)
 	    assets/reference/alpine/custom-repositories.txt \
 	    assets/reference/alpine/motd-main \
 	    assets/reference/alpine/motd-updater; \
+	  if [ -f "$(BOARD_DIR)/alpine/interfaces" ]; then \
+	    printf '%s\0' "$(BOARD_DIR)/alpine/interfaces"; \
+	  fi; \
+	  if [ -f "$(BOARD_DIR)/alpine/modules" ]; then \
+	    printf '%s\0' "$(BOARD_DIR)/alpine/modules"; \
+	  fi; \
 	  if [ -n "$(ROOT_AUTHORIZED_KEYS_FILE_FOR_HASH)" ] && [ -f "$(ROOT_AUTHORIZED_KEYS_FILE_FOR_HASH)" ]; then \
 	    printf '%s\0' "$(ROOT_AUTHORIZED_KEYS_FILE_FOR_HASH)"; \
 	  fi; \
@@ -126,6 +140,7 @@ $(ROOTFS_INPUTS_HASH): FORCE | $(STAMPS_DIR)
 $(UBOOT_INPUTS_HASH): FORCE | $(STAMPS_DIR)
 	@{ \
 	  printf '%s\0' \
+	    $(BOARD_DIR)/board.env \
 	    scripts/fetch-uboot-reference-assets.sh \
 	    scripts/check-tooling.sh; \
 	} | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $$1}' >"$@.tmp"
@@ -134,6 +149,7 @@ $(UBOOT_INPUTS_HASH): FORCE | $(STAMPS_DIR)
 $(MAIN_IMAGE_INPUTS_HASH): FORCE | $(STAMPS_DIR)
 	@{ \
 	  printf '%s\0' \
+	    $(BOARD_DIR)/board.env \
 	    scripts/assemble-e54c-image.sh \
 	    scripts/check-tooling.sh; \
 	} | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $$1}' >"$@.tmp"
@@ -142,6 +158,7 @@ $(MAIN_IMAGE_INPUTS_HASH): FORCE | $(STAMPS_DIR)
 $(USB_IMAGE_INPUTS_HASH): FORCE | $(STAMPS_DIR)
 	@{ \
 	  printf '%s\0' \
+	    $(BOARD_DIR)/board.env \
 	    scripts/build-usb-updater-image.sh \
 	    scripts/check-tooling.sh; \
 	} | sort -z | xargs -0 sha256sum | sha256sum | awk '{print $$1}' >"$@.tmp"
@@ -188,5 +205,5 @@ distclean: clean-stamps
 		"$(REPO_ROOT)/build/kernel-artifacts" \
 		"$(REPO_ROOT)/build/kernel-out" \
 		"$(REPO_ROOT)/build/usb-updater" \
-		"$(REPO_ROOT)/build/e54c-alpine-custom.img" \
-		"$(REPO_ROOT)/build/e54c-alpine-usb-updater.img"
+		"$(REPO_ROOT)/build/$(BOARD)-alpine-custom.img" \
+		"$(REPO_ROOT)/build/$(BOARD)-alpine-usb-updater.img"

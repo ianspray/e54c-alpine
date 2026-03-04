@@ -2,6 +2,7 @@ build/
 work/
 src/radxa-kernel/
 src/radxa-kernel-e54c/
+src/radxa-kernel-*/
 *.img
 *.img.xz
 *.iso
@@ -11,5 +12,9 @@ assets/reference/u-boot/*
 !assets/reference/u-boot/patches/
 assets/reference/u-boot/patches/*
 !assets/reference/u-boot/patches/*.patch
+boards/*/u-boot/*
+!boards/*/u-boot/patches/
+boards/*/u-boot/patches/*
+!boards/*/u-boot/patches/*.patch
 assets/reference/alpine/custom-keys/builder-699ddcb1.rsa.pub
 assets/reference/alpine/root_authorized_keys

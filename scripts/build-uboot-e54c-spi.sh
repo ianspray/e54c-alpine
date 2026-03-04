@@ -11,7 +11,9 @@ UBOOT_REPO="${UBOOT_REPO:-https://github.com/radxa/u-boot.git}"
 UBOOT_BRANCH="${UBOOT_BRANCH:-next-dev-v2024.10}"
 UBOOT_DEFCONFIG="${UBOOT_DEFCONFIG:-radxa-e54c-spi-rk3588s_defconfig}"
 UBOOT_WORKDIR="${UBOOT_WORKDIR:-$REPO_ROOT/build/u-boot-src/radxa-u-boot}"
-PATCH_FILE="${PATCH_FILE:-$REPO_ROOT/assets/reference/u-boot/patches/0001-e54c-enable-usb-host-in-uboot-dts.patch}"
+DEFAULT_PATCH_FILE="$REPO_ROOT/boards/e54c/u-boot/patches/0001-e54c-enable-usb-host-in-uboot-dts.patch"
+LEGACY_PATCH_FILE="$REPO_ROOT/assets/reference/u-boot/patches/0001-e54c-enable-usb-host-in-uboot-dts.patch"
+PATCH_FILE="${PATCH_FILE:-$DEFAULT_PATCH_FILE}"
 OUT_ROOT="${OUT_ROOT:-$REPO_ROOT/build/u-boot-artifacts}"
 CROSS_COMPILE="${CROSS_COMPILE:-aarch64-linux-gnu-}"
 JOBS="${JOBS:-$(nproc)}"
@@ -23,6 +25,10 @@ SPI_UBOOT_SOURCE="${SPI_UBOOT_SOURCE:-base}"
 SPI_FDT_SOURCE="${SPI_FDT_SOURCE:-build}"
 SPI_BASE_IMAGE_URL="${SPI_BASE_IMAGE_URL:-https://dl.radxa.com/e/e54c/images/radxa-e54c-spi-flash-image-20250620.img}"
 SPI_BASE_IMAGE_PATH="${SPI_BASE_IMAGE_PATH:-$REPO_ROOT/build/downloads/radxa-e54c-spi-flash-image-20250620.img}"
+
+if [ "$PATCH_FILE" = "$DEFAULT_PATCH_FILE" ] && [ ! -f "$PATCH_FILE" ] && [ -f "$LEGACY_PATCH_FILE" ]; then
+  PATCH_FILE="$LEGACY_PATCH_FILE"
+fi
 
 require_cmd() {
   local cmd="$1"
@@ -307,7 +313,9 @@ if [ -f "$UBOOT_WORKDIR/spl/u-boot-spl.bin" ] && [ -x "$UBOOT_WORKDIR/tools/mkim
 fi
 
 # Preserve vendor idbloader as compatibility fallback for SPI flashing offsets.
-if [ -f "$REPO_ROOT/assets/reference/u-boot/idbloader.img" ]; then
+if [ -f "$REPO_ROOT/boards/e54c/u-boot/idbloader.img" ]; then
+  cp "$REPO_ROOT/boards/e54c/u-boot/idbloader.img" "$ARTIFACT_DIR/idbloader.vendor.img"
+elif [ -f "$REPO_ROOT/assets/reference/u-boot/idbloader.img" ]; then
   cp "$REPO_ROOT/assets/reference/u-boot/idbloader.img" "$ARTIFACT_DIR/idbloader.vendor.img"
 fi
 

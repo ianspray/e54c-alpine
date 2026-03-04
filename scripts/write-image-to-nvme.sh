@@ -6,8 +6,9 @@ export PATH="$PATH:/usr/sbin:/sbin"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+BOARD="${BOARD:-e54c}"
 
-IMAGE_PATH="$REPO_ROOT/build/e54c-alpine-custom.img"
+IMAGE_PATH="$REPO_ROOT/build/${BOARD}-alpine-custom.img"
 TARGET_DEVICE=""
 ASSUME_YES=0
 AUTO_UNMOUNT=0
@@ -191,4 +192,3 @@ if [ "$img_hash" != "$dev_hash" ]; then
 fi
 
 echo "Flash complete and verified."
-

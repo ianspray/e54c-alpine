@@ -1,0 +1,161 @@
+diff --git a/arch/arm/dts/rk3588s-radxa-e54c.dts b/arch/arm/dts/rk3588s-radxa-e54c.dts
+index 549f8cd56fb..73362b95b08 100644
+--- a/arch/arm/dts/rk3588s-radxa-e54c.dts
++++ b/arch/arm/dts/rk3588s-radxa-e54c.dts
+@@ -8,11 +8,41 @@
+ /dts-v1/;
+ #include "rk3588.dtsi"
+ #include "rk3588-u-boot.dtsi"
++#include <dt-bindings/gpio/gpio.h>
+ #include <dt-bindings/input/input.h>
++#include <dt-bindings/pinctrl/rockchip.h>
+ 
+ / {
+ 	model = "Radxa E54C";
+ 	compatible = "radxa,e54c", "rockchip,rk3588";
++
++	vcc5v0_usb_hub: vcc5v0-usb-hub-regulator {
++		u-boot,dm-pre-reloc;
++		compatible = "regulator-fixed";
++		regulator-name = "vcc5v0_usb_hub";
++		regulator-min-microvolt = <5000000>;
++		regulator-max-microvolt = <5000000>;
++		regulator-boot-on;
++		regulator-always-on;
++		enable-active-high;
++		gpio = <&gpio4 RK_PB5 GPIO_ACTIVE_HIGH>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&vcc5v0_usb_hub_en>;
++	};
++
++	vcc5v0_usb3_host: vcc5v0-usb3-host-regulator {
++		u-boot,dm-pre-reloc;
++		compatible = "regulator-fixed";
++		regulator-name = "vcc5v0_usb3_host";
++		regulator-min-microvolt = <5000000>;
++		regulator-max-microvolt = <5000000>;
++		regulator-boot-on;
++		regulator-always-on;
++		enable-active-high;
++		gpio = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
++		pinctrl-names = "default";
++		pinctrl-0 = <&vcc5v0_usb3_host_en>;
++	};
+ };
+ 
+ /* M.2 M-KEY PCIe */
+@@ -24,3 +54,114 @@
+ 	status = "okay";
+ 	reset-gpios = <&gpio3 RK_PD1 GPIO_ACTIVE_HIGH>;
+ };
++
++&u2phy2 {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&u2phy2_host {
++	u-boot,dm-pre-reloc;
++	phy-supply = <&vcc5v0_usb_hub>;
++	status = "okay";
++};
++
++&u2phy3 {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&u2phy3_host {
++	u-boot,dm-pre-reloc;
++	phy-supply = <&vcc5v0_usb3_host>;
++	status = "okay";
++};
++
++&usb2phy2_grf {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&usb2phy3_grf {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&usb_host0_ehci {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&usb_host0_ohci {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&usb_host1_ehci {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&usb_host1_ohci {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&usbhost3_0 {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&usbhost_dwc3_0 {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&combphy2_psu {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++
++&u2phy0 {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&u2phy0_otg {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&usbdp_phy0_dp {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&usbdp_phy0_u3 {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&usbdrd3_0 {
++	u-boot,dm-pre-reloc;
++	status = "okay";
++};
++
++&usbdrd_dwc3_0 {
++	u-boot,dm-pre-reloc;
++	dr_mode = "host";
++	status = "okay";
++};
++
++&pinctrl {
++	usb {
++		vcc5v0_usb_hub_en: vcc5v0-usb-hub-en {
++			rockchip,pins = <4 RK_PB5 RK_FUNC_GPIO &pcfg_pull_none>;
++		};
++
++		vcc5v0_usb3_host_en: vcc5v0-usb3-host-en {
++			rockchip,pins = <0 RK_PD4 RK_FUNC_GPIO &pcfg_pull_none>;
++		};
++	};
++};

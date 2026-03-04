@@ -7,6 +7,10 @@ export PATH="$PATH:/usr/sbin:/sbin"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/board-config.sh"
+load_board_config
+
 ALPINE_BRANCH="${ALPINE_BRANCH:-v3.23}"
 ALPINE_VERSION="${ALPINE_VERSION:-3.23.3}"
 ALPINE_ARCH="${ALPINE_ARCH:-aarch64}"
@@ -25,12 +29,21 @@ SERIAL_BAUD="${SERIAL_BAUD:-1500000}"
 ROOT_AUTHORIZED_KEYS_FILE="${ROOT_AUTHORIZED_KEYS_FILE-__AUTO__}"
 ROOT_PASSWORD_HASH="${ROOT_PASSWORD_HASH:-\$6\$e54c\$AvSUgOTK89YCT1RHhqB/SfsK3J5itEI.1QMfd2fRmcUgYla4h4UUBMbCOKPm89stfDAoWvWCA8E0zamUvTN0A/}"
 ROOT_PASSWORD_PLAIN="${ROOT_PASSWORD_PLAIN:-}"
-ROOT_PASSWORD_SALT="${ROOT_PASSWORD_SALT:-e54c}"
+ROOT_PASSWORD_SALT="${ROOT_PASSWORD_SALT:-${BOARD_ROOT_PASSWORD_SALT:-e54c}}"
 ENABLE_BOOT_NET_BANNER="${ENABLE_BOOT_NET_BANNER:-1}"
 BOOT_BANNER_TITLE="${BOOT_BANNER_TITLE:-}"
 ENABLE_BOOT_NTP_SYNC="${ENABLE_BOOT_NTP_SYNC:-1}"
 BOOT_NTP_SERVERS="${BOOT_NTP_SERVERS:-pool.ntp.org time.cloudflare.com time.google.com}"
-E54C_FORCE_DSA_MODULES="${E54C_FORCE_DSA_MODULES:-1}"
+# Backward compatibility:
+# - E54C_FORCE_DSA_MODULES previously controlled writing /etc/modules.
+# - FORCE_BOARD_MODULES is the board-agnostic equivalent.
+FORCE_BOARD_MODULES="${FORCE_BOARD_MODULES:-${E54C_FORCE_DSA_MODULES:-1}}"
+BOARD_ALPINE_INTERFACES_FILE="${BOARD_ALPINE_INTERFACES_FILE:-}"
+BOARD_ALPINE_MODULES_FILE="${BOARD_ALPINE_MODULES_FILE:-}"
+BOARD_BOOT_SERVICES="${BOARD_BOOT_SERVICES:-e54c-dev-perms e54c-bootmode-oneshot e54c-partition-mount}"
+BOARD_IMMUTABLE_ROOT_SERVICE="${BOARD_IMMUTABLE_ROOT_SERVICE:-e54c-root-mode}"
+NET_BANNER_SERVICE_NAME="${NET_BANNER_SERVICE_NAME:-${BOARD_NET_BANNER_SERVICE_NAME:-show-net-addrs}}"
+BOOT_NTP_SERVICE_NAME="${BOOT_NTP_SERVICE_NAME:-${BOARD_BOOT_NTP_SERVICE_NAME:-e54c-ntp-sync}}"
 MOTD_TEMPLATE_FILE="${MOTD_TEMPLATE_FILE:-$REPO_ROOT/assets/reference/alpine/motd-main}"
 ENFORCE_IMMUTABLE_ROOT="${ENFORCE_IMMUTABLE_ROOT:-1}"
 
@@ -38,12 +51,14 @@ DOWNLOAD_DIR="${DOWNLOAD_DIR:-$REPO_ROOT/build/downloads}"
 ROOTFS_DIR_WAS_SET="${ROOTFS_DIR+x}"
 ROOTFS_DIR="${ROOTFS_DIR:-$REPO_ROOT/build/alpine-rootfs}"
 ROOTFS_TAR="${ROOTFS_TAR:-$REPO_ROOT/build/alpine-rootfs.tar}"
+ROOTFS_FALLBACK_ON_EXTRACT_FAILURE="${ROOTFS_FALLBACK_ON_EXTRACT_FAILURE:-1}"
+ROOTFS_FALLBACK_DIR="${ROOTFS_FALLBACK_DIR:-/tmp/${BOARD}-alpine-rootfs}"
 DEFAULT_ROOT_AUTHORIZED_KEYS_FILE="$REPO_ROOT/assets/reference/alpine/root_authorized_keys"
 
 # In containerized macOS workflows, bind-mounted /workspace can reject
 # extraction/deletion of many rootfs files. Prefer a container-local path.
 if [ -z "$ROOTFS_DIR_WAS_SET" ] && [[ "$REPO_ROOT" == /workspace* ]]; then
-  ROOTFS_DIR="/tmp/e54c-alpine-rootfs"
+  ROOTFS_DIR="$ROOTFS_FALLBACK_DIR"
 fi
 
 if [ "$ROOT_AUTHORIZED_KEYS_FILE" = "__AUTO__" ]; then
@@ -91,12 +106,15 @@ extract_minirootfs() {
 }
 
 if ! extract_minirootfs "$ROOTFS_DIR"; then
-  if [ -z "$ROOTFS_DIR_WAS_SET" ]; then
-    fallback_rootfs_dir="/tmp/e54c-alpine-rootfs"
-    echo "Rootfs extraction failed in workspace path: $ROOTFS_DIR" >&2
-    echo "Retrying in container-local path: $fallback_rootfs_dir" >&2
-    ROOTFS_DIR="$fallback_rootfs_dir"
-    extract_minirootfs "$ROOTFS_DIR"
+  if [ "$ROOTFS_FALLBACK_ON_EXTRACT_FAILURE" = "1" ] && [ "$ROOTFS_DIR" != "$ROOTFS_FALLBACK_DIR" ]; then
+    echo "Rootfs extraction failed in path: $ROOTFS_DIR" >&2
+    echo "Retrying in fallback path: $ROOTFS_FALLBACK_DIR" >&2
+    ROOTFS_DIR="$ROOTFS_FALLBACK_DIR"
+    mkdir -p "$ROOTFS_DIR"
+    if ! extract_minirootfs "$ROOTFS_DIR"; then
+      echo "Rootfs extraction failed in fallback path: $ROOTFS_DIR" >&2
+      exit 1
+    fi
   else
     echo "Rootfs extraction failed for ROOTFS_DIR=$ROOTFS_DIR" >&2
     exit 1
@@ -244,41 +262,22 @@ if [ -f "$ROOTFS_DIR/etc/lbu/lbu.conf" ]; then
 fi
 
 mkdir -p "$ROOTFS_DIR/etc/network"
-cat >"$ROOTFS_DIR/etc/network/interfaces" <<'EOF'
+if [ -n "$BOARD_ALPINE_INTERFACES_FILE" ] && [ -f "$BOARD_ALPINE_INTERFACES_FILE" ]; then
+  install -m 0644 "$BOARD_ALPINE_INTERFACES_FILE" "$ROOTFS_DIR/etc/network/interfaces"
+else
+  cat >"$ROOTFS_DIR/etc/network/interfaces" <<'EOF'
 auto lo
 iface lo inet loopback
 
-# Radxa E54C uses DSA port names from DT:
-# wan, lan1, lan2, lan3
-# WAN is DHCP client; LAN ports are manual for local services (e.g. DHCP server).
-auto wan
-iface wan inet dhcp
-
-auto lan1
-iface lan1 inet manual
-
-auto lan2
-iface lan2 inet manual
-
-auto lan3
-iface lan3 inet manual
+auto eth0
+iface eth0 inet dhcp
 EOF
+fi
 
-if [ "$E54C_FORCE_DSA_MODULES" = "1" ]; then
-  cat >"$ROOTFS_DIR/etc/modules" <<'EOF'
-# Base networking modules
-af_packet
-ipv6
-
-# Radxa E54C DSA switch stack (front-panel ports wan/lan1/lan2/lan3)
-dsa_core
-tag_rtl4_a
-tag_rtl8_4
-realtek-mdio
-realtek-smi
-rtl8365mb
-rtl8366
-EOF
+if [ "$FORCE_BOARD_MODULES" = "1" ]; then
+  if [ -n "$BOARD_ALPINE_MODULES_FILE" ] && [ -f "$BOARD_ALPINE_MODULES_FILE" ]; then
+    install -m 0644 "$BOARD_ALPINE_MODULES_FILE" "$ROOTFS_DIR/etc/modules"
+  fi
 fi
 
 # Serial-only login for headless operation.
@@ -318,11 +317,11 @@ done
 for svc in networking sshd; do
   enable_service "$svc" default
 done
-enable_service e54c-dev-perms boot
-enable_service e54c-bootmode-oneshot boot
-enable_service e54c-partition-mount boot
-if [ "$ENFORCE_IMMUTABLE_ROOT" = "1" ]; then
-  enable_service e54c-root-mode boot
+for svc in $BOARD_BOOT_SERVICES; do
+  enable_service "$svc" boot
+done
+if [ "$ENFORCE_IMMUTABLE_ROOT" = "1" ] && [ -n "$BOARD_IMMUTABLE_ROOT_SERVICE" ]; then
+  enable_service "$BOARD_IMMUTABLE_ROOT_SERVICE" boot
 fi
 
 # Optional: preload root authorized_keys for headless SSH access.
@@ -353,21 +352,21 @@ fi
 
 if [ "$ENABLE_BOOT_NET_BANNER" = "1" ]; then
   mkdir -p "$ROOTFS_DIR/etc/conf.d"
-  cat >"$ROOTFS_DIR/etc/conf.d/show-net-addrs" <<EOF
+  cat >"$ROOTFS_DIR/etc/conf.d/$NET_BANNER_SERVICE_NAME" <<EOF
 serial_tty="${SERIAL_TTY}"
 wait_seconds=40
 banner_title="${BOOT_BANNER_TITLE}"
 EOF
-  enable_service show-net-addrs default
+  enable_service "$NET_BANNER_SERVICE_NAME" default
 fi
 
 if [ "$ENABLE_BOOT_NTP_SYNC" = "1" ]; then
   mkdir -p "$ROOTFS_DIR/etc/conf.d"
-  cat >"$ROOTFS_DIR/etc/conf.d/e54c-ntp-sync" <<EOF
+  cat >"$ROOTFS_DIR/etc/conf.d/$BOOT_NTP_SERVICE_NAME" <<EOF
 # Space-separated list of NTP servers for one-shot boot sync.
 servers="${BOOT_NTP_SERVERS}"
 EOF
-  enable_service e54c-ntp-sync default
+  enable_service "$BOOT_NTP_SERVICE_NAME" default
 fi
 
 # busybox-suid installs bbsuid as execute-only in usermode; make it readable for tar packaging.

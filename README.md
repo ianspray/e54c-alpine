@@ -10,6 +10,8 @@ For full build/run details, see `src/README.md`.
   - Build and packaging entry points (kernel, rootfs, image assembly, APK repo, SPI U-Boot, USB updater).
 - `assets/`
   - Version-controlled reference inputs (configs, DTS patches, package lists, MOTD templates, keys).
+- `boards/`
+  - Board-specific profiles and overrides. Use `BOARD=<name>` for builds (default: `e54c`).
 - `apk/`
   - Custom Alpine APK package sources (`APKBUILD` + service payload files).
 - `src/`
@@ -30,7 +32,7 @@ These can be removed and will be recreated by scripts when needed.
 - `build/`
   - Recreated by all build scripts (`scripts/build-*.sh`, `scripts/prepare-alpine-rootfs.sh`, `scripts/assemble-e54c-image.sh`).
   - Contains outputs like kernel artifacts, rootfs tarball, image files, APK repo, U-Boot build trees.
-- `src/radxa-kernel-e54c/`
+- `src/radxa-kernel-<board>/`
   - Recreated by `scripts/fetch-radxa-kernel.sh` (called by `scripts/build-kernel-e54c.sh`).
   - This is a local git clone of the Radxa kernel branch.
 
@@ -42,7 +44,7 @@ These can be removed and will be recreated by scripts when needed.
 
 ## Regenerating U-Boot Reference Blobs
 
-If `assets/reference/u-boot/idbloader.img` or `assets/reference/u-boot/u-boot.itb`
+If `boards/<board>/u-boot/idbloader.img` or `boards/<board>/u-boot/u-boot.itb`
 are missing, repopulate them with:
 
 ```bash
@@ -50,6 +52,24 @@ scripts/fetch-uboot-reference-assets.sh
 ```
 
 ## Most Common Operating Sequence
+
+```bash
+BOARD=e54c scripts/check-tooling.sh
+BOARD=e54c scripts/fetch-uboot-reference-assets.sh
+BOARD=e54c scripts/build-apk-repo.sh
+BOARD=e54c scripts/build-kernel-e54c.sh
+BOARD=e54c scripts/prepare-alpine-rootfs.sh
+BOARD=e54c scripts/assemble-e54c-image.sh
+BOARD=e54c scripts/build-usb-updater-image.sh
+```
+
+Equivalent with `make`:
+
+```bash
+make BOARD=e54c images
+```
+
+Legacy explicit sequence (still valid):
 
 ```bash
 scripts/check-tooling.sh
@@ -63,7 +83,7 @@ scripts/build-usb-updater-image.sh
 
 ## Notes
 
-- `.gitignore` already marks generated trees (`build/`, `work/`, `src/radxa-kernel/`, `src/radxa-kernel-e54c/`) as non-tracked.
+- `.gitignore` already marks generated trees (`build/`, `work/`, `src/radxa-kernel/`, `src/radxa-kernel-*`) as non-tracked.
 - If disk space cleanup is needed, deleting `build/` is the highest-impact safe reset.
 
 # Copyright and Licence

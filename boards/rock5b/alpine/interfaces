@@ -1,0 +1,7 @@
+auto lo
+iface lo inet loopback
+
+# ROCK 5B default network policy.
+# Adjust interfaces as needed for your deployment.
+auto eth0
+iface eth0 inet dhcp

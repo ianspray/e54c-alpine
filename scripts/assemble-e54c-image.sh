@@ -6,7 +6,12 @@ export PATH="$PATH:/usr/sbin:/sbin"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-GUESTFS_TMP_DEFAULT="${GUESTFS_TMP_DEFAULT:-/tmp/e54c-guestfs-tmp}"
+
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/board-config.sh"
+load_board_config
+
+GUESTFS_TMP_DEFAULT="${GUESTFS_TMP_DEFAULT:-/tmp/${BOARD}-guestfs-tmp}"
 mkdir -p "$GUESTFS_TMP_DEFAULT"
 
 export TMPDIR="${TMPDIR:-$GUESTFS_TMP_DEFAULT}"
@@ -19,20 +24,22 @@ export LIBGUESTFS_CACHEDIR="${LIBGUESTFS_CACHEDIR:-$GUESTFS_TMP_DEFAULT}"
 export LIBGUESTFS_BACKEND_SETTINGS="${LIBGUESTFS_BACKEND_SETTINGS:-force_tcg}"
 export LIBGUESTFS_MEMSIZE="${LIBGUESTFS_MEMSIZE:-1024}"
 
-IMAGE_PATH="${IMAGE_PATH:-$REPO_ROOT/build/e54c-alpine-custom.img}"
+IMAGE_PATH="${IMAGE_PATH:-$REPO_ROOT/build/${BOARD}-alpine-custom.img}"
 IMAGE_SIZE="${IMAGE_SIZE:-8G}"
 ROOTFS_TAR="${ROOTFS_TAR:-$REPO_ROOT/build/alpine-rootfs.tar}"
-UBOOT_DIR="${UBOOT_DIR:-$REPO_ROOT/assets/reference/u-boot}"
-CONFIG_FILE="${CONFIG_FILE:-$REPO_ROOT/assets/reference/radxa/config.txt}"
+UBOOT_DIR="${UBOOT_DIR:-${BOARD_UBOOT_ASSETS_DIR:-$REPO_ROOT/assets/reference/u-boot}}"
+CONFIG_FILE="${CONFIG_FILE:-${BOARD_CONFIG_FILE_DEFAULT:-$REPO_ROOT/assets/reference/radxa/config.txt}}"
 DEFAULT_BOOT_MODE="${DEFAULT_BOOT_MODE:-immutable}"
-BOARD_DTB_NAME="${BOARD_DTB_NAME:-rk3588s-radxa-e54c-spi.dtb}"
+BOARD_DTB_NAME="${BOARD_DTB_NAME:-${BOARD_DTB_NAME_DEFAULT:-rk3588s-radxa-e54c-spi.dtb}}"
 ROOTFS_PARTLABEL="${ROOTFS_PARTLABEL:-rootfs}"
 ROOTFS_MKFS_LABEL="${ROOTFS_MKFS_LABEL:-$ROOTFS_PARTLABEL}"
 ENABLE_INITRAMFS_BOOT="${ENABLE_INITRAMFS_BOOT:-1}"
-INITRAMFS_NAME="${INITRAMFS_NAME:-initramfs-e54c.cpio.gz}"
+INITRAMFS_NAME="${INITRAMFS_NAME:-initramfs-${BOARD}.cpio.gz}"
 SINGLE_BOOT_LABEL="${SINGLE_BOOT_LABEL:-immutable}"
 CONFIG_PART_GPT_TYPE="${CONFIG_PART_GPT_TYPE:-0FC63DAF-8483-4772-8E79-3D69D8477DE4}"
 BOOTCFG_PART_GPT_TYPE="${BOOTCFG_PART_GPT_TYPE:-C12A7328-F81F-11D2-BA4B-00A0C93EC93B}"
+SPI_IDBLOADER_LBA="${SPI_IDBLOADER_LBA:-${BOARD_SPI_IDBLOADER_LBA_DEFAULT:-64}}"
+SPI_UBOOT_ITB_LBA="${SPI_UBOOT_ITB_LBA:-${BOARD_SPI_UBOOT_ITB_LBA_DEFAULT:-16384}}"
 
 # Partition geometry (512-byte sectors):
 # - p1 config: 256 MiB (starts at 16 MiB)
@@ -401,10 +408,9 @@ upload $tmp_stage/boot/$INITRAMFS_NAME /boot/$INITRAMFS_NAME
 EOF
 fi
 
-# Radxa E54C bootloader offsets from vendor setup script:
-#   idbloader @ LBA 64 (32 KiB), u-boot.itb @ LBA 16384 (8 MiB)
-dd conv=notrunc,fsync if="$UBOOT_DIR/idbloader.img" of="$IMAGE_PATH" bs=512 seek=64 status=none
-dd conv=notrunc,fsync if="$UBOOT_DIR/u-boot.itb" of="$IMAGE_PATH" bs=512 seek=16384 status=none
+# Rockchip bootloader offsets from vendor setup script defaults.
+dd conv=notrunc,fsync if="$UBOOT_DIR/idbloader.img" of="$IMAGE_PATH" bs=512 seek="$SPI_IDBLOADER_LBA" status=none
+dd conv=notrunc,fsync if="$UBOOT_DIR/u-boot.itb" of="$IMAGE_PATH" bs=512 seek="$SPI_UBOOT_ITB_LBA" status=none
 
 # Match Radxa GPT partition attributes:
 # attribute flags 0x4 (bit 2) set on p2 and p3.
