@@ -7,6 +7,14 @@ export PATH="$PATH:/usr/sbin:/sbin"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+UPDATER_WORK_DIR_WAS_SET="${UPDATER_WORK_DIR+x}"
+UPDATER_ROOTFS_DIR_WAS_SET="${UPDATER_ROOTFS_DIR+x}"
+UPDATER_ROOTFS_TAR_WAS_SET="${UPDATER_ROOTFS_TAR+x}"
+UPDATER_PAYLOAD_DIR_WAS_SET="${UPDATER_PAYLOAD_DIR+x}"
+UPDATER_PAYLOAD_FILE_WAS_SET="${UPDATER_PAYLOAD_FILE+x}"
+UPDATER_PAYLOAD_SHA256_WAS_SET="${UPDATER_PAYLOAD_SHA256+x}"
+UPDATER_GUESTFS_TMPDIR_WAS_SET="${UPDATER_GUESTFS_TMPDIR+x}"
+
 NVME_IMAGE_PATH="${NVME_IMAGE_PATH:-$REPO_ROOT/build/e54c-alpine-custom.img}"
 USB_UPDATER_IMAGE_PATH="${USB_UPDATER_IMAGE_PATH:-$REPO_ROOT/build/e54c-alpine-usb-updater.img}"
 UPDATER_WORK_DIR="${UPDATER_WORK_DIR:-$REPO_ROOT/build/usb-updater}"
@@ -22,6 +30,30 @@ UPDATER_TARGET_NVME_DEVICE="${UPDATER_TARGET_NVME_DEVICE:-/dev/nvme0n1}"
 UPDATER_ROOT_PARTLABEL="${UPDATER_ROOT_PARTLABEL:-updater-rootfs}"
 UPDATER_INITRAMFS_NAME="${UPDATER_INITRAMFS_NAME:-${INITRAMFS_NAME:-initramfs-e54c.cpio.gz}}"
 UPDATER_ALPINE_PACKAGES="${UPDATER_ALPINE_PACKAGES:-alpine-base alpine-conf openssh mtd-utils dosfstools e2fsprogs zstd}"
+
+# In containerized macOS workflows, bind-mounted /workspace can reject
+# extraction/deletion of many rootfs files. Prefer container-local paths.
+if [[ "$REPO_ROOT" == /workspace* ]]; then
+  if [ -z "$UPDATER_ROOTFS_DIR_WAS_SET" ]; then
+    UPDATER_ROOTFS_DIR="/tmp/e54c-usb-updater-rootfs"
+  fi
+  if [ -z "$UPDATER_ROOTFS_TAR_WAS_SET" ]; then
+    UPDATER_ROOTFS_TAR="/tmp/e54c-usb-updater-rootfs.tar"
+  fi
+  if [ -z "$UPDATER_GUESTFS_TMPDIR_WAS_SET" ]; then
+    UPDATER_GUESTFS_TMPDIR="/tmp/e54c-usb-updater-guestfs-tmp"
+  fi
+fi
+
+if [ -z "$UPDATER_PAYLOAD_DIR_WAS_SET" ]; then
+  UPDATER_PAYLOAD_DIR="$UPDATER_ROOTFS_DIR/opt/e54c-updater"
+fi
+if [ -z "$UPDATER_PAYLOAD_FILE_WAS_SET" ]; then
+  UPDATER_PAYLOAD_FILE="$UPDATER_PAYLOAD_DIR/nvme-image.img.zst"
+fi
+if [ -z "$UPDATER_PAYLOAD_SHA256_WAS_SET" ]; then
+  UPDATER_PAYLOAD_SHA256="$UPDATER_PAYLOAD_FILE.sha256"
+fi
 
 require_cmd() {
   local cmd="$1"
@@ -51,6 +83,8 @@ mkdir -p "$UPDATER_GUESTFS_TMPDIR"
 export TMPDIR="$UPDATER_GUESTFS_TMPDIR"
 export LIBGUESTFS_TMPDIR="$UPDATER_GUESTFS_TMPDIR"
 export LIBGUESTFS_CACHEDIR="$UPDATER_GUESTFS_TMPDIR"
+export LIBGUESTFS_BACKEND_SETTINGS="${LIBGUESTFS_BACKEND_SETTINGS:-force_tcg}"
+export LIBGUESTFS_MEMSIZE="${LIBGUESTFS_MEMSIZE:-1024}"
 
 echo "Preparing updater Alpine rootfs..."
 ROOTFS_DIR="$UPDATER_ROOTFS_DIR" \
