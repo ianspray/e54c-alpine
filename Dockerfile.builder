@@ -36,6 +36,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   python3 \
   qemu-utils \
   rsync \
+  gcc-aarch64-linux-gnu \
+  binutils-aarch64-linux-gnu \
   sed \
   squashfs-tools \
   tar \
