@@ -64,7 +64,7 @@ usb-updater-image: $(USB_IMAGE_STAMP)
 
 help:
 	@echo "Targets:"
-	@echo "  (set BOARD=<name>, default: e54c)"
+	@echo "  (set BOARD=<name>, default: e54c; options: e54c, rock5b, rpi4)"
 	@echo "  make all                Build main and USB updater images (default)."
 	@echo "  make apk-repo           Build local custom APK repository."
 	@echo "  make uboot-assets       Fetch reference U-Boot artifacts."

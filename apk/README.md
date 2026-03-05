@@ -1,13 +1,13 @@
 # Custom APK Repository Workflow
 
-This directory holds custom Alpine packages (APK) for E54C images.
+This directory holds custom Alpine packages (APK) for board images.
 
 ## Layout
 
 - `apk/aports/<namespace>/<package>/APKBUILD`
 - `apk/aports/<namespace>/<package>/*` package source files
 
-Current namespace is `e54c`.
+Current namespaces include `e54c`, `rock5b`, and `rpi4`.
 
 ## Build All Packages
 

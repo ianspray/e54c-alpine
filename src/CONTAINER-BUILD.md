@@ -1,6 +1,6 @@
 # Containerized Build Guide (Debian)
 
-This guide documents how to run the full E54C image build in a Debian-based container, with flashing performed manually on the host.
+This guide documents how to run board image builds in a Debian-based container, with flashing performed manually on the host.
 
 ## Scope
 
@@ -38,6 +38,12 @@ Build for ROCK5B:
 BOARD=rock5b scripts/run-build-in-container.sh --runtime podman
 ```
 
+Build for Raspberry Pi 4:
+
+```bash
+BOARD=rpi4 scripts/run-build-in-container.sh --runtime podman
+```
+
 This will:
 
 1. Build `radxa-builder:bookworm` from `Dockerfile.builder` if missing.
@@ -58,6 +64,12 @@ Build ROCK5B main image only:
 
 ```bash
 BOARD=rock5b scripts/run-build-in-container.sh --runtime podman -- make main-image
+```
+
+Build Raspberry Pi 4 main image only:
+
+```bash
+BOARD=rpi4 scripts/run-build-in-container.sh --runtime podman -- make main-image
 ```
 
 Force rebuild of builder image:
@@ -87,6 +99,14 @@ Expected output image names:
 - ROCK5B:
   - `build/rock5b-alpine-custom.img`
   - `build/rock5b-alpine-usb-updater.img`
+- Raspberry Pi 4:
+  - `build/rpi4-alpine-custom.img`
+  - `build/rpi4-alpine-usb-updater.img`
+
+Notes by board:
+
+- `e54c`, `rock5b`: Rockchip flow with SPI U-Boot assets + extlinux boot entries.
+- `rpi4`: Alpine Raspberry Pi prebuilt boot/kernel assets + Pi firmware boot (`config.txt`/`cmdline.txt`), no SPI U-Boot injection.
 
 ## Why Privileged Mode Is Required
 

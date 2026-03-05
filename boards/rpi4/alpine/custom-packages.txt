@@ -1,0 +1,5 @@
+# Optional package names from custom repositories.
+# One package per line. Comment lines are ignored.
+#
+rpi4-openrc-services
+rpi4-usb-updater-services

@@ -27,6 +27,7 @@ SPI_IDBLOADER_LBA="${SPI_IDBLOADER_LBA:-${BOARD_SPI_IDBLOADER_LBA_DEFAULT:-64}}"
 SPI_UBOOT_ITB_LBA="${SPI_UBOOT_ITB_LBA:-${BOARD_SPI_UBOOT_ITB_LBA_DEFAULT:-16384}}"
 IDBLOADER_SIZE_BYTES="${IDBLOADER_SIZE_BYTES:-${BOARD_IDBLOADER_SIZE_BYTES_DEFAULT:-319488}}"
 UBOOT_ITB_SIZE_BYTES="${UBOOT_ITB_SIZE_BYTES:-${BOARD_UBOOT_ITB_SIZE_BYTES_DEFAULT:-1484288}}"
+BOOTLOADER_MODE="${BOOTLOADER_MODE:-${BOARD_BOOTLOADER_MODE:-spi-dd}}"
 
 FORCE_DOWNLOAD=0
 FORCE_OVERWRITE=0
@@ -92,6 +93,18 @@ require_cmd truncate
 require_cmd stat
 
 mkdir -p "$DOWNLOAD_DIR" "$UBOOT_ASSETS_DIR"
+
+if [ "$BOOTLOADER_MODE" = "none" ]; then
+  if [ ! -f "$UBOOT_ASSETS_DIR/idbloader.img" ]; then
+    : >"$UBOOT_ASSETS_DIR/idbloader.img"
+  fi
+  if [ ! -f "$UBOOT_ASSETS_DIR/u-boot.itb" ]; then
+    : >"$UBOOT_ASSETS_DIR/u-boot.itb"
+  fi
+  chmod 0644 "$UBOOT_ASSETS_DIR/idbloader.img" "$UBOOT_ASSETS_DIR/u-boot.itb"
+  echo "Board $BOARD uses BOOTLOADER_MODE=none; created placeholder assets in $UBOOT_ASSETS_DIR"
+  exit 0
+fi
 
 required_assets_ready=1
 for asset in idbloader.img u-boot.itb; do

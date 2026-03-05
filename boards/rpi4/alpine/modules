@@ -1,0 +1,2 @@
+# Optional early-loaded modules for Raspberry Pi 4.
+# Keep empty unless a board-specific module must be forced at boot.

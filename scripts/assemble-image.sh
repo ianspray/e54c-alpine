@@ -29,8 +29,11 @@ IMAGE_SIZE="${IMAGE_SIZE:-8G}"
 ROOTFS_TAR="${ROOTFS_TAR:-$REPO_ROOT/build/alpine-rootfs.tar}"
 UBOOT_DIR="${UBOOT_DIR:-${BOARD_UBOOT_ASSETS_DIR:-$REPO_ROOT/assets/reference/u-boot}}"
 CONFIG_FILE="${CONFIG_FILE:-${BOARD_CONFIG_FILE_DEFAULT:-$REPO_ROOT/assets/reference/radxa/config.txt}}"
+BOOT_SCHEME="${BOOT_SCHEME:-${BOARD_BOOT_SCHEME:-rockchip-extlinux}}"
+BOOTLOADER_MODE="${BOOTLOADER_MODE:-${BOARD_BOOTLOADER_MODE:-spi-dd}}"
 DEFAULT_BOOT_MODE="${DEFAULT_BOOT_MODE:-immutable}"
 BOARD_DTB_NAME="${BOARD_DTB_NAME:-${BOARD_DTB_NAME_DEFAULT:-rk3588s-radxa-e54c-spi.dtb}}"
+BOARD_DTB_SUBDIR="${BOARD_DTB_SUBDIR:-${BOARD_DTB_SUBDIR_DEFAULT:-rockchip}}"
 SERIAL_TTY="${SERIAL_TTY:-${BOARD_SERIAL_TTY:-ttyFIQ0}}"
 SERIAL_BAUD="${SERIAL_BAUD:-${BOARD_SERIAL_BAUD:-1500000}}"
 ROOTFS_PARTLABEL="${ROOTFS_PARTLABEL:-rootfs}"
@@ -76,7 +79,11 @@ if [ -z "$KERNEL_RELEASE_DIR" ] || [ ! -d "$KERNEL_RELEASE_DIR" ]; then
   exit 1
 fi
 
-for req in "$ROOTFS_TAR" "$UBOOT_DIR/idbloader.img" "$UBOOT_DIR/u-boot.itb" "$KERNEL_RELEASE_DIR/boot/Image"; do
+required_inputs=("$ROOTFS_TAR" "$KERNEL_RELEASE_DIR/boot/Image")
+if [ "$BOOTLOADER_MODE" = "spi-dd" ]; then
+  required_inputs+=("$UBOOT_DIR/idbloader.img" "$UBOOT_DIR/u-boot.itb")
+fi
+for req in "${required_inputs[@]}"; do
   if [ ! -e "$req" ]; then
     echo "Missing required input: $req" >&2
     exit 1
@@ -113,7 +120,7 @@ if ! ls /boot/vmlinuz* >/dev/null 2>&1 || ! ls -d /lib/modules/* >/dev/null 2>&1
   exit 1
 fi
 
-KERNEL_DTB="$KERNEL_RELEASE_DIR/boot/dtbs/rockchip/$BOARD_DTB_NAME"
+KERNEL_DTB="$KERNEL_RELEASE_DIR/boot/dtbs/$BOARD_DTB_SUBDIR/$BOARD_DTB_NAME"
 if [ ! -f "$KERNEL_DTB" ]; then
   echo "Missing required DTB: $KERNEL_DTB" >&2
   exit 1
@@ -364,7 +371,7 @@ fi
 
 # Keep bootargs intentionally short and put root first.
 # Some U-Boot extlinux paths appear to truncate long APPEND lines.
-CMDLINE_BASE_DEFAULT="root=PARTLABEL=${ROOTFS_PARTLABEL} rootfstype=ext4 rootwait=30 console=${SERIAL_TTY},${SERIAL_BAUD}n8 nvme_core.default_ps_max_latency_us=0 pcie_aspm=off"
+CMDLINE_BASE_DEFAULT="${BOARD_KERNEL_CMDLINE_BASE_DEFAULT:-root=PARTLABEL=${ROOTFS_PARTLABEL} rootfstype=ext4 rootwait=30 console=${SERIAL_TTY},${SERIAL_BAUD}n8 nvme_core.default_ps_max_latency_us=0 pcie_aspm=off}"
 CMDLINE_BASE="${KERNEL_CMDLINE_BASE:-$CMDLINE_BASE_DEFAULT}"
 CMDLINE_IMMUTABLE_DEFAULT="${CMDLINE_BASE} ro diskless=yes diskless_tmpfs_size=${DISKLESS_TMPFS_SIZE_MIB}"
 CMDLINE_MAINTENANCE_DEFAULT="${CMDLINE_BASE} rw"
@@ -376,8 +383,13 @@ if [ "$ENABLE_INITRAMFS_BOOT" = "1" ]; then
 fi
 
 DEFAULT_EXTLINUX_LABEL="$SINGLE_BOOT_LABEL"
+BOOT_TAR="$tmp_stage/boot.tar"
+RPI_BOOT_TAR="$tmp_stage/rpi-boot.tar"
+MODULES_TAR="$tmp_stage/modules.tar"
 
-cat >"$tmp_stage/boot/extlinux/extlinux.conf" <<EOF
+case "$BOOT_SCHEME" in
+  rockchip-extlinux)
+    cat >"$tmp_stage/boot/extlinux/extlinux.conf" <<EOF
 DEFAULT ${DEFAULT_EXTLINUX_LABEL}
 MENU TITLE U-Boot menu
 PROMPT 1
@@ -386,14 +398,54 @@ TIMEOUT 50
 LABEL immutable
   MENU LABEL Alpine Linux (diskless)
   LINUX /boot/Image
-  FDT /boot/dtbs/rockchip/${BOARD_DTB_NAME}
+  FDT /boot/dtbs/${BOARD_DTB_SUBDIR}/${BOARD_DTB_NAME}
 ${INITRD_LINE}
   APPEND ${CMDLINE_IMMUTABLE}
 EOF
+    tar -C "$tmp_stage" -cf "$BOOT_TAR" boot
+    ;;
+  rpi-firmware)
+    firmware_dir="$KERNEL_RELEASE_DIR/boot/firmware"
+    if [ ! -d "$firmware_dir" ]; then
+      echo "Missing required Raspberry Pi firmware directory: $firmware_dir" >&2
+      exit 1
+    fi
 
-BOOT_TAR="$tmp_stage/boot.tar"
-MODULES_TAR="$tmp_stage/modules.tar"
-tar -C "$tmp_stage" -cf "$BOOT_TAR" boot
+    rpi_boot_dir="$tmp_stage/rpi-boot"
+    mkdir -p "$rpi_boot_dir/dtbs/$BOARD_DTB_SUBDIR"
+    cp -a "$firmware_dir"/. "$rpi_boot_dir/"
+    cp "$tmp_stage/boot/Image" "$rpi_boot_dir/Image"
+    cp "$KERNEL_DTB" "$rpi_boot_dir/dtbs/$BOARD_DTB_SUBDIR/$BOARD_DTB_NAME"
+
+    if [ "$ENABLE_INITRAMFS_BOOT" = "1" ]; then
+      cp "$tmp_stage/boot/$INITRAMFS_NAME" "$rpi_boot_dir/$INITRAMFS_NAME"
+    fi
+
+    if [ -f "$CONFIG_FILE" ]; then
+      cp "$CONFIG_FILE" "$rpi_boot_dir/config.txt"
+    else
+      : >"$rpi_boot_dir/config.txt"
+    fi
+
+    if ! grep -Eq '^[[:space:]]*kernel=' "$rpi_boot_dir/config.txt"; then
+      printf '%s\n' "kernel=Image" >>"$rpi_boot_dir/config.txt"
+    fi
+    if ! grep -Eq '^[[:space:]]*device_tree=' "$rpi_boot_dir/config.txt"; then
+      printf '%s\n' "device_tree=dtbs/${BOARD_DTB_SUBDIR}/${BOARD_DTB_NAME}" >>"$rpi_boot_dir/config.txt"
+    fi
+    if [ "$ENABLE_INITRAMFS_BOOT" = "1" ] && ! grep -Eq "^[[:space:]]*initramfs[[:space:]]+${INITRAMFS_NAME}[[:space:]]+followkernel" "$rpi_boot_dir/config.txt"; then
+      printf '%s\n' "initramfs ${INITRAMFS_NAME} followkernel" >>"$rpi_boot_dir/config.txt"
+    fi
+
+    printf '%s\n' "$CMDLINE_IMMUTABLE" >"$rpi_boot_dir/cmdline.txt"
+    tar -C "$rpi_boot_dir" -cf "$RPI_BOOT_TAR" .
+    ;;
+  *)
+    echo "Unsupported BOOT_SCHEME: $BOOT_SCHEME" >&2
+    echo "Supported values: rockchip-extlinux, rpi-firmware" >&2
+    exit 1
+    ;;
+esac
 
 if [ -d "$KERNEL_RELEASE_DIR/rootfs/lib/modules" ]; then
   tar -C "$KERNEL_RELEASE_DIR/rootfs" -cf "$MODULES_TAR" lib/modules
@@ -403,7 +455,9 @@ else
   tar -cf "$MODULES_TAR" --files-from /dev/null
 fi
 
-guestfish <<EOF
+case "$BOOT_SCHEME" in
+  rockchip-extlinux)
+    guestfish <<EOF
 add-drive $IMAGE_PATH
 run
 part-init /dev/sda gpt
@@ -431,27 +485,62 @@ tar-in $MODULES_TAR /
 upload $CONFIG_FILE /config/config.txt
 mkdir-p /config/cache
 mkdir-p /boot/efi/extlinux
-mkdir-p /boot/efi/boot/dtbs/rockchip
+mkdir-p /boot/efi/boot/dtbs/${BOARD_DTB_SUBDIR}
 upload $tmp_stage/boot/extlinux/extlinux.conf /boot/efi/extlinux/extlinux.conf
 upload $tmp_stage/boot/Image /boot/efi/boot/Image
-upload $KERNEL_DTB /boot/efi/boot/dtbs/rockchip/${BOARD_DTB_NAME}
+upload $KERNEL_DTB /boot/efi/boot/dtbs/${BOARD_DTB_SUBDIR}/${BOARD_DTB_NAME}
 EOF
 
-if [ "$ENABLE_INITRAMFS_BOOT" = "1" ]; then
+    if [ "$ENABLE_INITRAMFS_BOOT" = "1" ]; then
 guestfish <<EOF
 add-drive $IMAGE_PATH
 run
 mount /dev/sda2 /
 upload $tmp_stage/boot/$INITRAMFS_NAME /boot/$INITRAMFS_NAME
 EOF
+    fi
+    ;;
+  rpi-firmware)
+    guestfish <<EOF
+add-drive $IMAGE_PATH
+run
+part-init /dev/sda gpt
+part-add /dev/sda p $P1_START $P1_END
+part-add /dev/sda p $P2_START $P2_END
+part-add /dev/sda p $P3_START -34
+part-set-name /dev/sda 1 config
+part-set-name /dev/sda 2 efi
+part-set-name /dev/sda 3 $ROOTFS_PARTLABEL
+part-set-gpt-type /dev/sda 1 $BOOTCFG_PART_GPT_TYPE
+part-set-gpt-type /dev/sda 2 $CONFIG_PART_GPT_TYPE
+part-set-gpt-type /dev/sda 3 0FC63DAF-8483-4772-8E79-3D69D8477DE4
+mkfs vfat /dev/sda1 label:config
+mkfs vfat /dev/sda2 label:efi
+mkfs ext4 /dev/sda3 label:$ROOTFS_MKFS_LABEL
+mount /dev/sda3 /
+mkdir-p /boot
+mkdir-p /boot/efi
+mkdir-p /config
+mount /dev/sda2 /boot/efi
+mount /dev/sda1 /config
+tar-in $ROOTFS_TAR /
+tar-in $MODULES_TAR /
+tar-in $RPI_BOOT_TAR /config
+mkdir-p /config/cache
+EOF
+    ;;
+esac
+
+if [ "$BOOTLOADER_MODE" = "spi-dd" ]; then
+  # Rockchip bootloader offsets from vendor setup script defaults.
+  dd conv=notrunc,fsync if="$UBOOT_DIR/idbloader.img" of="$IMAGE_PATH" bs=512 seek="$SPI_IDBLOADER_LBA" status=none
+  dd conv=notrunc,fsync if="$UBOOT_DIR/u-boot.itb" of="$IMAGE_PATH" bs=512 seek="$SPI_UBOOT_ITB_LBA" status=none
 fi
 
-# Rockchip bootloader offsets from vendor setup script defaults.
-dd conv=notrunc,fsync if="$UBOOT_DIR/idbloader.img" of="$IMAGE_PATH" bs=512 seek="$SPI_IDBLOADER_LBA" status=none
-dd conv=notrunc,fsync if="$UBOOT_DIR/u-boot.itb" of="$IMAGE_PATH" bs=512 seek="$SPI_UBOOT_ITB_LBA" status=none
-
-# Match Radxa GPT partition attributes:
-# attribute flags 0x4 (bit 2) set on p2 and p3.
-/usr/sbin/sgdisk --attributes=2:set:2 --attributes=3:set:2 "$IMAGE_PATH" >/dev/null
+if [ "$BOOT_SCHEME" = "rockchip-extlinux" ]; then
+  # Match Radxa GPT partition attributes:
+  # attribute flags 0x4 (bit 2) set on p2 and p3.
+  /usr/sbin/sgdisk --attributes=2:set:2 --attributes=3:set:2 "$IMAGE_PATH" >/dev/null
+fi
 
 echo "Image assembled: $IMAGE_PATH"

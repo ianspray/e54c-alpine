@@ -1,16 +1,22 @@
-# E54C Custom Kernel Workflow
+# Board Build Workflow
 
 This repository now contains a reproducible pipeline to:
 
-1. Fetch the Radxa kernel tree with E54C DTS support.
-2. Build a custom kernel, modules, and E54C DTBs.
+1. Prepare board-specific kernel/boot artifacts.
+2. Build a custom or prebuilt kernel payload, modules, and board DTBs.
 3. Prepare an Alpine aarch64 rootfs with `apk`, `openrc`, `alpine-conf` (`lbu`), and `openssh`.
-4. Assemble an NVMe-bootable raw disk image using Radxa bootloader offsets.
+4. Assemble a bootable raw disk image using the selected board boot flow.
 
 ## Commands
 
 Run commands from the repository root.  
 Select a board with `BOARD=<name>` (default: `e54c`).
+
+Supported board profiles:
+
+- `e54c`
+- `rock5b`
+- `rpi4`
 
 ```bash
 BOARD=e54c scripts/check-tooling.sh
@@ -25,6 +31,8 @@ Equivalent:
 
 ```bash
 make BOARD=e54c main-image
+make BOARD=rock5b main-image
+make BOARD=rpi4 main-image
 ```
 
 One-shot pipeline:
@@ -123,10 +131,10 @@ All scripts in `scripts/` and their primary purpose:
   - Download board SPI image and extract required `idbloader.img` and `u-boot.itb` into `boards/<board>/u-boot`.
   - Uses board fetch profile defaults from `boards/<board>/u-boot-fetch.env` when present.
 - `scripts/fetch-radxa-kernel.sh`
-  - Clone/update the Radxa kernel source tree used by kernel builds.
+  - Clone/update the Radxa kernel source tree used by Radxa kernel builds.
   - Applies optional board-local patches from `boards/<board>/kernel/patches/*.patch`.
 - `scripts/build-kernel.sh`
-  - Build kernel image, modules, and DTBs for E54C.
+  - Build or fetch kernel image, modules, and DTBs for the selected board profile.
 - `scripts/prepare-alpine-rootfs.sh`
   - Build and configure Alpine rootfs content.
   - Uses board package defaults from `boards/<board>/alpine/packages.txt` and
@@ -168,6 +176,10 @@ scripts/build-usb-updater-image.sh
   Radxa branch by default. Board differences should be kept in:
   - `boards/<board>/kernel/custom-kernel.fragment`
   - `boards/<board>/kernel/patches/*.patch` (only when required)
+
+- `rpi4` uses Alpine's published Raspberry Pi image as the kernel/firmware/modules source
+  (configured in `boards/rpi4/board.env`) and boots via Pi firmware
+  (`config.txt` + `cmdline.txt`) without SPI U-Boot injection.
 
 - U-Boot bootloader blobs are written at:
   - `idbloader.img` -> LBA `64`

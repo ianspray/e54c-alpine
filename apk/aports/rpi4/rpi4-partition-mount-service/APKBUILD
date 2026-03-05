@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: MIT
+# Maintainer: IWS <iws@toothless.local>
+pkgname=rpi4-partition-mount-service
+pkgver=0.1.0
+pkgrel=2
+pkgdesc="RPI4 OpenRC NVMe Partition mounter"
+url="https://example.invalid/rpi4-alpine"
+arch="noarch"
+license="MIT"
+depends="openrc busybox"
+source="
+  rpi4-partition-mount.sh
+  rpi4-partition-mount.initd
+  rpi4-partition-mount.confd
+"
+builddir="$srcdir"
+options="!check"
+
+package() {
+  install -Dm755 "$srcdir"/rpi4-partition-mount.sh "$pkgdir"/usr/sbin/rpi4-partition-mount
+
+  install -Dm755 "$srcdir"/rpi4-partition-mount.initd "$pkgdir"/etc/init.d/rpi4-partition-mount
+  install -Dm644 "$srcdir"/rpi4-partition-mount.confd "$pkgdir"/etc/conf.d/rpi4-partition-mount
+}
+
+sha512sums="
+e96cb03cafa9eecc93db17e52697744ce49fbeb0fc06a1dfcb9c84361e055aef3f14db67ea70d3cdf267f6777bf3cbf6ac01a90e52137284d064b4dea655ec87  rpi4-partition-mount.sh
+5c070139e8bd9cf9a58bed4c39f2cc201b87817580a07a20b0dd7e76cc5e312a6a3329b8465bcc803a070d74d882c74d50b3a3975d87acc2ff27ca3f4592f07f  rpi4-partition-mount.initd
+958a3101be68a9f8f207afb4f0bb56791be3156320b1925cc5becbdd4d1892532157df5d925dac3aef991d92a3aa75845d3c7b1a3bafa79ea193845ca50bd750  rpi4-partition-mount.confd
+"

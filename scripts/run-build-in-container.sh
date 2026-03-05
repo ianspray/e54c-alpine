@@ -28,11 +28,12 @@ Default build command:
   make images
 
 Environment:
-  BOARD                       Board profile to build (default: e54c).
+  BOARD                       Board profile to build (default: e54c; options: e54c, rock5b, rpi4).
 
 Examples:
   scripts/run-build-in-container.sh
   BOARD=rock5b scripts/run-build-in-container.sh -- make main-image
+  BOARD=rpi4 scripts/run-build-in-container.sh -- make main-image
   scripts/run-build-in-container.sh -- make main-image
   scripts/run-build-in-container.sh --rebuild-image -- scripts/build-all.sh
 EOF

@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: MIT
+# Raspberry Pi 4 firmware config used by scripts/assemble-image.sh.
+
+arm_64bit=1
+enable_uart=1
+
+# The assembler injects this kernel file into the config partition.
+kernel=Image
+
+# Keep DTB location explicit and board-local.
+device_tree=dtbs/broadcom/bcm2711-rpi-4-b.dtb

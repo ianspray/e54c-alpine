@@ -12,6 +12,7 @@ For full build/run details, see `src/README.md`.
   - Version-controlled reference inputs (configs, DTS patches, package lists, MOTD templates, keys).
 - `boards/`
   - Board-specific profiles and overrides. Use `BOARD=<name>` for builds (default: `e54c`).
+  - Supported board profiles: `e54c`, `rock5b`, `rpi4`.
   - Includes board-local Alpine package lists (`boards/<board>/alpine/packages.txt`) and
     U-Boot fetch profiles (`boards/<board>/u-boot-fetch.env`).
 - `apk/`
@@ -35,7 +36,7 @@ These can be removed and will be recreated by scripts when needed.
   - Recreated by all build scripts (`scripts/build-*.sh`, `scripts/prepare-alpine-rootfs.sh`, `scripts/assemble-image.sh`).
   - Contains outputs like kernel artifacts, rootfs tarball, image files, APK repo, U-Boot build trees.
 - `src/radxa-kernel-<board>/`
-  - Recreated by `scripts/fetch-radxa-kernel.sh` (called by `scripts/build-kernel.sh`).
+  - Recreated by `scripts/fetch-radxa-kernel.sh` (called by `scripts/build-kernel.sh`) for Radxa-source boards.
   - This is a local git clone of the Radxa kernel branch.
 
 ## Safe-To-Delete But Not Script-Critical
@@ -53,6 +54,9 @@ are missing, repopulate them with:
 scripts/fetch-uboot-reference-assets.sh
 ```
 
+Boards that use firmware-native boot (`BOARD=rpi4`) do not inject SPI U-Boot.  
+For those boards, the same script creates harmless placeholders so `make` targets remain uniform.
+
 ## Most Common Operating Sequence
 
 ```bash
@@ -69,6 +73,8 @@ Equivalent with `make`:
 
 ```bash
 make BOARD=e54c images
+make BOARD=rock5b images
+make BOARD=rpi4 images
 ```
 
 Legacy explicit sequence (still valid):

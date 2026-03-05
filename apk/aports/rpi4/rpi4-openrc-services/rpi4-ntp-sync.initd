@@ -1,0 +1,33 @@
+#!/sbin/openrc-run
+# SPDX-License-Identifier: MIT
+
+name="rpi4-ntp-sync"
+description="Run one-shot NTP sync in background"
+
+depend() {
+  need networking
+  before sshd
+}
+
+start() {
+  ebegin "Triggering background NTP sync"
+  (
+    if [ -f /run/rpi4-ntp-sync.done ]; then
+      exit 0
+    fi
+    : "${servers:=pool.ntp.org}"
+    ntp_cmd="$(command -v ntpd || true)"
+    if [ -n "$ntp_cmd" ]; then
+      ntp_invoke="$ntp_cmd"
+    else
+      ntp_invoke="/bin/busybox ntpd"
+    fi
+    args=""
+    for s in $servers; do
+      args="$args -p $s"
+    done
+    sh -c "$ntp_invoke -q -n $args >/run/rpi4-ntp-sync.log 2>&1 || true"
+    touch /run/rpi4-ntp-sync.done
+  ) &
+  eend 0
+}

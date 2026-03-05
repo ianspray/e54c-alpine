@@ -1,0 +1,18 @@
+#!/sbin/openrc-run
+# SPDX-License-Identifier: MIT
+
+name="rpi4-partition-mount"
+description="Check a hardware device for partitions with labels, and mount them"
+command_background="no"
+
+depend() {
+  need devfs
+  need localmount
+  after modules
+}
+
+start() {
+  ebegin "Mounting additional storage volumes"
+  /usr/sbin/rpi4-partition-mount
+  eend $?
+}
