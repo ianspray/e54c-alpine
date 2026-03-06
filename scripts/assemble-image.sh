@@ -61,17 +61,22 @@ P2_END=$((P2_START + P2_SIZE_SECTORS - 1))
 P3_START=$((P2_END + 1))
 
 if [ -z "${KERNEL_RELEASE_DIR:-}" ]; then
-  latest_release=""
-  latest_mtime=0
-  for candidate in "$REPO_ROOT"/build/kernel-artifacts/*; do
-    [ -d "$candidate" ] || continue
-    candidate_mtime="$(stat -c %Y "$candidate" 2>/dev/null || echo 0)"
-    if [ -z "$latest_release" ] || [ "$candidate_mtime" -gt "$latest_mtime" ]; then
-      latest_release="$candidate"
-      latest_mtime="$candidate_mtime"
-    fi
-  done
-  KERNEL_RELEASE_DIR="$latest_release"
+  current_kernel_file="$REPO_ROOT/build/kernel-artifacts/current-$BOARD"
+  if [ -f "$current_kernel_file" ]; then
+    KERNEL_RELEASE_DIR="$(cat "$current_kernel_file")"
+  else
+    latest_release=""
+    latest_mtime=0
+    for candidate in "$REPO_ROOT"/build/kernel-artifacts/*; do
+      [ -d "$candidate" ] || continue
+      candidate_mtime="$(stat -c %Y "$candidate" 2>/dev/null || echo 0)"
+      if [ -z "$latest_release" ] || [ "$candidate_mtime" -gt "$latest_mtime" ]; then
+        latest_release="$candidate"
+        latest_mtime="$candidate_mtime"
+      fi
+    done
+    KERNEL_RELEASE_DIR="$latest_release"
+  fi
 fi
 
 if [ -z "$KERNEL_RELEASE_DIR" ] || [ ! -d "$KERNEL_RELEASE_DIR" ]; then

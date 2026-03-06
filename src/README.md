@@ -181,8 +181,8 @@ scripts/build-usb-updater-image.sh
   - `boards/<board>/kernel/custom-kernel.fragment`
   - `boards/<board>/kernel/patches/*.patch` (only when required)
 
-- `rock3b` currently uses the Radxa RK3568 ROCK 3A DT naming in the BSP tree
-  (`rk3568-rock-3a.dtb`) as the default boot DTB.
+- `rock3b` backports the upstream ROCK 3B device tree into the shared Radxa BSP branch
+  and uses `rk3568-rock-3b.dtb` as the default boot DTB.
 
 - `rpi4` uses Alpine's published Raspberry Pi image as the kernel/firmware/modules source
   (configured in `boards/rpi4/board.env`) and boots via Pi firmware

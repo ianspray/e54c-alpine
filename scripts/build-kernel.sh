@@ -16,12 +16,14 @@ OUT_DIR_WAS_SET="${OUT_DIR+x}"
 KERNEL_DIR="${KERNEL_DIR:-$REPO_ROOT/src/radxa-kernel-$BOARD}"
 OUT_DIR="${OUT_DIR:-$REPO_ROOT/build/kernel-out}"
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-$REPO_ROOT/build/kernel-artifacts}"
+CURRENT_ARTIFACT_FILE="${CURRENT_ARTIFACT_FILE:-$ARTIFACTS_DIR/current-$BOARD}"
 ARCH="${ARCH:-arm64}"
 CROSS_COMPILE="${CROSS_COMPILE:-}"
 JOBS="${JOBS:-}"
 DEFCONFIG_TARGET="${DEFCONFIG_TARGET:-rockchip_linux_defconfig}"
 FRAGMENT_FILE="${FRAGMENT_FILE:-${BOARD_KERNEL_FRAGMENT_FILE:-$REPO_ROOT/assets/reference/radxa/custom-kernel.fragment}}"
 KERNEL_DTBS="${KERNEL_DTBS:-${BOARD_KERNEL_DTBS:-rk3588s-radxa-e54c.dtb rk3588s-radxa-e54c-spi.dtb}}"
+KERNEL_DTB_SUBDIR="${KERNEL_DTB_SUBDIR:-${BOARD_DTB_SUBDIR_DEFAULT:-rockchip}}"
 BUILD_TARGETS="${BUILD_TARGETS:-Image dtbs modules}"
 KERNEL_SOURCE_MODE="${KERNEL_SOURCE_MODE:-${BOARD_KERNEL_SOURCE_MODE:-radxa-git}}"
 
@@ -160,19 +162,48 @@ build_from_radxa_source() {
   echo "Building kernel targets: $BUILD_TARGETS (jobs=$JOBS)"
   make "${MAKE_ARGS[@]}" -j"$JOBS" $BUILD_TARGETS
 
+  for dtb in $KERNEL_DTBS; do
+    dtb_target="$KERNEL_DTB_SUBDIR/$dtb"
+    dtb_source="$KERNEL_DIR/arch/arm64/boot/dts/$KERNEL_DTB_SUBDIR/${dtb%.dtb}.dts"
+    dtb_output="$OUT_DIR/arch/arm64/boot/dts/$KERNEL_DTB_SUBDIR/$dtb"
+
+    if [ -f "$dtb_output" ] || [ ! -f "$dtb_source" ]; then
+      continue
+    fi
+
+    echo "Building explicit board DTB target: $dtb"
+    make "${MAKE_ARGS[@]}" "$dtb_target"
+  done
+
   KERNEL_RELEASE="$(make "${MAKE_ARGS[@]}" -s kernelrelease)"
   RELEASE_DIR="$ARTIFACTS_DIR/$KERNEL_RELEASE"
+  dtb_output_dir="$OUT_DIR/arch/arm64/boot/dts/$KERNEL_DTB_SUBDIR"
+  copied_dtbs=0
 
-  mkdir -p "$RELEASE_DIR/boot/dtbs/rockchip" "$RELEASE_DIR/rootfs"
+  mkdir -p "$RELEASE_DIR/boot/dtbs/$KERNEL_DTB_SUBDIR" "$RELEASE_DIR/rootfs"
   cp "$OUT_DIR/arch/arm64/boot/Image" "$RELEASE_DIR/boot/Image"
   cp "$OUT_DIR/.config" "$RELEASE_DIR/kernel.config"
 
   for dtb in $KERNEL_DTBS; do
-    src="$OUT_DIR/arch/arm64/boot/dts/rockchip/$dtb"
+    src="$dtb_output_dir/$dtb"
     if [ -f "$src" ]; then
-      cp "$src" "$RELEASE_DIR/boot/dtbs/rockchip/$dtb"
+      cp "$src" "$RELEASE_DIR/boot/dtbs/$KERNEL_DTB_SUBDIR/$dtb"
+      copied_dtbs=$((copied_dtbs + 1))
     fi
   done
+
+  if [ "$copied_dtbs" -eq 0 ] && [ -d "$dtb_output_dir" ]; then
+    while IFS= read -r dtb_src; do
+      dtb_name="$(basename "$dtb_src")"
+      cp "$dtb_src" "$RELEASE_DIR/boot/dtbs/$KERNEL_DTB_SUBDIR/$dtb_name"
+      copied_dtbs=$((copied_dtbs + 1))
+    done < <(find "$dtb_output_dir" -maxdepth 1 -type f -name '*.dtb' | sort)
+  fi
+
+  if [ "$copied_dtbs" -eq 0 ]; then
+    echo "No DTBs were copied from kernel output: $dtb_output_dir" >&2
+    exit 1
+  fi
 
   if [[ " $BUILD_TARGETS " == *" modules "* ]]; then
     if [ "$CASE_INSENSITIVE_WORKSPACE" -eq 1 ]; then
@@ -191,6 +222,7 @@ build_from_radxa_source() {
   echo "Kernel build complete."
   echo "Kernel release: $KERNEL_RELEASE"
   echo "Artifacts: $RELEASE_DIR"
+  printf '%s\n' "$RELEASE_DIR" >"$CURRENT_ARTIFACT_FILE"
 }
 
 build_from_alpine_rpi_image() {
@@ -358,6 +390,7 @@ build_from_alpine_rpi_image() {
   echo "Kernel artifacts prepared from Alpine RPi image."
   echo "Kernel release: $KERNEL_RELEASE"
   echo "Artifacts: $RELEASE_DIR"
+  printf '%s\n' "$RELEASE_DIR" >"$CURRENT_ARTIFACT_FILE"
 }
 
 case "$KERNEL_SOURCE_MODE" in
