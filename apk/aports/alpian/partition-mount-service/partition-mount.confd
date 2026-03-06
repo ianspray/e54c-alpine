@@ -5,6 +5,6 @@ check_hardware_path="/dev/nvme0n1"
 # Where do the mountpoints go ?
 mount_point_root="/"
 
-# What options do we want to mount with ?
-# eg: mount_options="rw,relatime"
-mount_options="ro"
+# Where the read-only lower mounts and overlay upper/work dirs live.
+# This should stay on the ramdisk/tmpfs.
+work_mount_point="/media"
