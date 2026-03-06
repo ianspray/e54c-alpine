@@ -7,7 +7,7 @@ This directory holds custom Alpine packages (APK) for board images.
 - `apk/aports/<namespace>/<package>/APKBUILD`
 - `apk/aports/<namespace>/<package>/*` package source files
 
-Current namespaces include `e54c`, `rock5b`, `rock3b`, and `rpi4`.
+Current namespaces include `e54c`, `rock5b`, `rock3b`, and `rpi4` for board specific packages, and `alpian` for common ones.
 
 ## Build All Packages
 
@@ -20,6 +20,10 @@ This script:
 1. Builds all `APKBUILD` entries under `apk/aports` in an Alpine Podman container.
 2. Produces a signed APK repository at `build/apk-repo/v3.23/aarch64` by default.
 3. Exports public signing keys to `assets/reference/alpine/custom-keys`.
+
+If the checksums have not changed in the apk tree, then use: `APK_REFRESH_CHECKSUMS=1 ./scripts/build-apk-repo.sh` to skip computing the checksums for a quicker build.
+
+By default, `aarch64` packages are constructed - if a different architecture (ie: `x86_64`) should be built, then: `APK_ARCH="x86_86" ./scripts/build-apk-repo.sh` will do that.
 
 ## Serve Repository
 

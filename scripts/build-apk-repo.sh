@@ -12,9 +12,23 @@ APK_REPO_OUT="${APK_REPO_OUT:-$REPO_ROOT/build/apk-repo}"
 APK_KEYS_DIR="${APK_KEYS_DIR:-$REPO_ROOT/build/apk-keys}"
 APK_KEYS_EXPORT_DIR="${APK_KEYS_EXPORT_DIR:-$REPO_ROOT/assets/reference/alpine/custom-keys}"
 APK_PODMAN_IMAGE="${APK_PODMAN_IMAGE:-docker.io/library/alpine:3.23}"
+APK_PODMAN_ARCH="${APK_PODMAN_ARCH:-}"
 APK_PODMAN_NETWORK="${APK_PODMAN_NETWORK:-host}"
+APK_REFRESH_CHECKSUMS="${APK_REFRESH_CHECKSUMS:-1}"
 APK_RETRY_COUNT="${APK_RETRY_COUNT:-5}"
 APK_RETRY_DELAY_SEC="${APK_RETRY_DELAY_SEC:-3}"
+
+if [ -z "$APK_PODMAN_ARCH" ]; then
+  case "$APK_ARCH" in
+    aarch64) APK_PODMAN_ARCH="arm64" ;;
+    x86_64) APK_PODMAN_ARCH="amd64" ;;
+    *)
+      echo "Unsupported APK_ARCH for container mapping: $APK_ARCH" >&2
+      echo "Set APK_PODMAN_ARCH explicitly if this arch should be supported." >&2
+      exit 1
+      ;;
+  esac
+fi
 
 require_cmd() {
   local cmd="$1"
@@ -60,6 +74,8 @@ fi
 echo "Building custom APK repository"
 echo "  APKBUILD count: ${#apkbuild_files[@]}"
 echo "  Branch/arch:    ${APK_REPO_BRANCH}/${APK_ARCH}"
+echo "  Container arch: ${APK_PODMAN_ARCH}"
+echo "  Refresh sums:   ${APK_REFRESH_CHECKSUMS}"
 echo "  Output:         ${APK_REPO_OUT}"
 
 mkdir -p "$APK_REPO_OUT" "$APK_KEYS_DIR" "$APK_KEYS_EXPORT_DIR"
@@ -128,12 +144,21 @@ for apkbuild in /work/aports/*/*/APKBUILD; do
   mkdir -p "$builddir"
   cp -a "$pkgsrc"/. "$builddir"/
   chown -R builder:builder "$builddir"
-  su builder -c "cd $builddir && abuild checksum && abuild -r"
+  if [ "${APK_REFRESH_CHECKSUMS:-0}" = "1" ]; then
+    su builder -c "cd $builddir && CARCH=$APK_ARCH abuild checksum"
+  fi
+  su builder -c "cd $builddir && CARCH=$APK_ARCH abuild -r"
 done
 
 builder_repo_dir="/home/builder/packages/tmp/${APK_ARCH}"
 if [ ! -d "$builder_repo_dir" ]; then
   echo "Builder repository not found: $builder_repo_dir" >&2
+  exit 1
+fi
+
+if ! ls "$builder_repo_dir"/*.apk >/dev/null 2>&1; then
+  echo "No APKs produced for APK_ARCH=$APK_ARCH in $builder_repo_dir" >&2
+  echo "Check build logs above for architecture mismatches or package postcheck failures." >&2
   exit 1
 fi
 
@@ -146,9 +171,11 @@ cp -f /home/builder/.abuild/*.rsa.pub /work/keys/
 
 retry_cmd "$APK_RETRY_COUNT" "$APK_RETRY_DELAY_SEC" \
   podman run --rm \
+    --arch "$APK_PODMAN_ARCH" \
     --network "$APK_PODMAN_NETWORK" \
     -e APK_REPO_BRANCH="$APK_REPO_BRANCH" \
     -e APK_ARCH="$APK_ARCH" \
+    -e APK_REFRESH_CHECKSUMS="$APK_REFRESH_CHECKSUMS" \
     -e APK_RETRY_COUNT="$APK_RETRY_COUNT" \
     -e APK_RETRY_DELAY_SEC="$APK_RETRY_DELAY_SEC" \
     -v "$APK_APORTS_ROOT:/work/aports:ro" \
