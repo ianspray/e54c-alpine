@@ -66,6 +66,21 @@ e that the change summary is in the body of the commit message
 - Each git commit should have a summary of the changes in the commit
   - If a summary has been displayed in the chat, then this should be used as the basis for the git summary
 
+## Clarifications
+- Treat all listed boards as first-class targets from the start
+- Assume AArch64 as the target architecture
+  - Builds may run natively on Linux
+  - Builds may also run in a containerised workflow under macOS
+- Kernel selection should prefer the newest practical kernel that still enables board-specific hardware
+  - Alpine kernels are slightly preferred when they satisfy the hardware requirements
+  - If a Radxa or other vendor kernel is newer than the Alpine option, the newer vendor kernel may be used
+  - If board-specific features cannot be ported from the vendor kernel to a newer kernel, pause and ask the user to choose between the two version numbers
+- The image filenames listed in this document are operator-supplied reference inputs
+  - They are not required to exist in the repository by default
+- Commit at the end of every completed task by default
+- Open clarification:
+  - Define the exact mechanism the USB updater should use after flashing to make itself non-bootable to u-boot
+
 ## E54C Guides
 - Radxa documentation about the E54C: https://docs.radxa.com/en/e/e54c
 - The Radxa guide to booting the E54C from NVMe: https://docs.radxa.com/en/e/e54c/getting-started/install-os/boot_from_nvme
