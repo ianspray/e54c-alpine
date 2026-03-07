@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+# Maintainer: IWS <iws@toothless.local>
+pkgname=r3s-usb-updater-services
+pkgver=0.1.0
+pkgrel=0
+pkgdesc="R3S updater OpenRC service and eMMC update runner"
+url="https://example.invalid/r3s-alpian"
+arch="noarch"
+license="MIT"
+depends="openrc zstd"
+source="
+  r3s-run-usb-update.sh
+  r3s-usb-emmc-update.initd
+  r3s-usb-emmc-update.confd
+"
+builddir="$srcdir"
+options="!check"
+
+package() {
+  install -Dm755 "$srcdir"/r3s-run-usb-update.sh "$pkgdir"/usr/sbin/r3s-run-usb-update
+  install -Dm755 "$srcdir"/r3s-usb-emmc-update.initd "$pkgdir"/etc/init.d/r3s-usb-emmc-update
+  install -Dm644 "$srcdir"/r3s-usb-emmc-update.confd "$pkgdir"/etc/conf.d/r3s-usb-emmc-update
+}
+
+sha512sums="
+ce357ff3e8dd8e79aa32dcd0a75c307bc25fd0d003238cc1028babd72207d206868425794e6a471d9a0e251a8a7550b47f4d9a5e081b8637b7b75ce4b25aff6c  r3s-run-usb-update.sh
+cbc24bf8c925787e11df8003e9ea8c644c4d6e122e34cd1daa756245e0f42fccc846ca62348027df6b0da70ebc78e764678f4ed6b7f3fddfaa0f40282d807347  r3s-usb-emmc-update.initd
+ff2d6537cd46b705392a64896e4b41b4726c7c80d3c34d81ab58c220b57f88c3ada40df2cdd7b3f982d3368a2a72c9d3bc07d7c063ad7ce81c0315c72d0a3113  r3s-usb-emmc-update.confd
+"

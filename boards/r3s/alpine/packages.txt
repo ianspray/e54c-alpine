@@ -1,0 +1,4 @@
+# Board-specific package overlay for NanoPi R3S.
+# These entries are appended after boards/alpian/alpine/packages.txt.
+
+r3s-usb-updater-services

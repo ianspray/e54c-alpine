@@ -1,0 +1,2 @@
+# NanoPi R3S module preload list.
+# Keep empty unless you need board-specific early module loading.

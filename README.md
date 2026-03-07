@@ -20,7 +20,7 @@ For full build/run details, see [src/README.md](./src/README.md), and for simpli
   - Version-controlled reference inputs (configs, DTS patches, package lists, MOTD templates, keys).
 - `boards/`
   - Board-specific profiles and overrides. Use `BOARD=<name>` for builds (default: `e54c`).
-  - Supported board profiles: `e54c`, `rock5b`, `rock3b`, `rpi4`.
+  - Supported board profiles: `e54c`, `rock5b`, `rock3b`, `r3s`, `rpi4`.
   - Includes shared Alpine package lists in `boards/alpian/alpine/` plus board overlay lists in
     `boards/<board>/alpine/`, and
     U-Boot fetch profiles (`boards/<board>/u-boot-fetch.env`).
@@ -84,6 +84,7 @@ Equivalent with `make`:
 make BOARD=e54c images
 make BOARD=rock5b images
 make BOARD=rock3b images
+make BOARD=r3s images
 make BOARD=rpi4 images
 ```
 

@@ -17,6 +17,7 @@ Supported board profiles:
 - `e54c`
 - `rock5b`
 - `rock3b`
+- `r3s`
 - `rpi4`
 
 ```bash
@@ -34,6 +35,7 @@ Equivalent:
 make BOARD=e54c main-image
 make BOARD=rock5b main-image
 make BOARD=rock3b main-image
+make BOARD=r3s main-image
 make BOARD=rpi4 main-image
 ```
 
@@ -55,7 +57,7 @@ Override the build command (example: main image only):
 scripts/build-alpian-in-container.sh -- make main-image
 ```
 
-Build USB updater image (boots from USB, flashes NVMe payload, then reboots):
+Build updater image (boots from removable media, flashes the target payload, then reboots):
 
 ```bash
 scripts/build-usb-updater-image.sh
@@ -99,7 +101,7 @@ Write the generated combined SPI image directly to flash (example):
 sudo flashcp -v build/u-boot-artifacts/<stamp>/spi-u-boot-16MiB.img /dev/mtd0
 ```
 
-Write USB updater image to a USB stick:
+Write updater image to removable media:
 
 ```bash
 sudo BOARD=e54c scripts/write-image-to-nvme.sh --image build/e54c-alpian-usb-updater.img --device /dev/sdX --yes
@@ -130,7 +132,7 @@ All scripts in `scripts/` and their primary purpose:
 - `scripts/check-tooling.sh`
   - Verify required host build tools are installed.
 - `scripts/fetch-uboot-reference-assets.sh`
-  - Download board SPI image and extract required `idbloader.img` and `u-boot.itb` into `boards/<board>/u-boot`.
+  - Download board bootloader reference assets and extract required `idbloader.img` and `u-boot.itb` into `boards/<board>/u-boot`.
   - Uses board fetch profile defaults from `boards/<board>/u-boot-fetch.env` when present.
 - `scripts/fetch-radxa-kernel.sh`
   - Clone/update the Radxa kernel source tree used by Radxa kernel builds.
@@ -146,7 +148,7 @@ All scripts in `scripts/` and their primary purpose:
 - `scripts/assemble-image.sh`
   - Assemble final main NVMe image from build artifacts.
 - `scripts/build-usb-updater-image.sh`
-  - Build USB updater image that reflashes NVMe and reboots.
+  - Build updater image that reflashes the board's configured target storage and reboots.
 - `scripts/build-uboot-spi.sh`
   - Build SPI U-Boot artifacts (including `spi-u-boot-16MiB.img`).
 - `scripts/build-apk-repo.sh`
@@ -184,6 +186,12 @@ scripts/build-usb-updater-image.sh
 - `rock3b` backports the upstream ROCK 3B device tree into the shared Radxa BSP branch
   and uses `rk3568-rock-3b.dtb` as the default boot DTB.
 
+- `r3s` backports the upstream NanoPi R3S device tree into the shared Radxa BSP branch,
+  uses FriendlyElec's published RK3566 `idbloader.img` and `uboot.img` artifacts as the
+  U-Boot source, and boots via U-Boot extlinux from TF/eMMC.
+  FriendlyElec's U-Boot environment prefers `mmc1` before `mmc0`, so the practical
+  first-install path is to write the updater image to TF and let it flash eMMC.
+
 - `rpi4` uses Alpine's published Raspberry Pi image as the kernel/firmware/modules source
   (configured in `boards/rpi4/board.env`) and boots via Pi firmware
   (`config.txt` + `cmdline.txt`) without SPI U-Boot injection.
@@ -199,12 +207,12 @@ scripts/build-usb-updater-image.sh
   - `p1` `config` FAT32 at `16 MiB` offset, size `256 MiB`
   - `p2` `efi` FAT32, size `300 MiB`
   - `p3` `rootfs` ext4 uses remainder
-- USB updater image details:
+- Updater image details:
   - Includes compressed payload derived from `build/<board>-alpian-custom.img`
-  - Boots a true diskless updater profile from USB (`diskless=yes` via initramfs)
-  - Auto-runs `e54c-usb-nvme-update` service to flash `/dev/nvme0n1`
-  - Disables USB boot entries on both EFI (`/extlinux/extlinux.conf`) and rootfs (`/boot/extlinux/extlinux.conf`) after successful flash
-  - Reboots so U-Boot can fall through to NVMe on next boot
+  - Boots a true diskless updater profile from removable media (`diskless=yes` via initramfs)
+  - Auto-runs the board-specific updater service to flash the configured target device
+  - Disables updater boot entries on both EFI (`/extlinux/extlinux.conf`) and rootfs (`/boot/extlinux/extlinux.conf`) after successful flash
+  - Reboots so U-Boot can fall through to the flashed target storage on next boot
 - Alpine rootfs defaults:
   - Serial-only login on `ttyFIQ0` at `1500000` baud
   - `openrc` enabled for boot + networking + sshd

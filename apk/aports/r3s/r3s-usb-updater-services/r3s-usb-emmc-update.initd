@@ -1,0 +1,19 @@
+#!/sbin/openrc-run
+# SPDX-License-Identifier: MIT
+
+name="r3s-usb-emmc-update"
+description="Flash bundled eMMC image from updater media, then reboot"
+
+depend() {
+  need localmount
+  before networking
+}
+
+start() {
+  ebegin "Running USB to eMMC update flow"
+  TARGET_DEVICE="${target_device:-/dev/mmcblk0}" \
+    ROOT_PARTLABEL_REQUIRED="${root_partlabel:-r3s-updater-rootfs}" \
+    TARGET_WAIT_SECONDS="${target_wait_seconds:-120}" \
+    /usr/sbin/r3s-run-usb-update
+  eend $?
+}

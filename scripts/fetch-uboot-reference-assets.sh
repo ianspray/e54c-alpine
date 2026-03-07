@@ -19,6 +19,7 @@ fi
 
 UBOOT_ASSETS_DIR="${UBOOT_ASSETS_DIR:-${BOARD_UBOOT_ASSETS_DIR:-$REPO_ROOT/assets/reference/u-boot}}"
 DOWNLOAD_DIR="${DOWNLOAD_DIR:-$REPO_ROOT/build/downloads}"
+UBOOT_FETCH_MODE="${UBOOT_FETCH_MODE:-spi-image}"
 SPI_BASE_IMAGE_FILENAME="${SPI_BASE_IMAGE_FILENAME:-${BOARD_SPI_BASE_IMAGE_FILENAME_DEFAULT:-radxa-$BOARD-spi-base.img}}"
 SPI_BASE_IMAGE_URL="${SPI_BASE_IMAGE_URL:-${BOARD_SPI_BASE_IMAGE_URL_DEFAULT:-}}"
 SPI_BASE_IMAGE_PATH="${SPI_BASE_IMAGE_PATH:-$DOWNLOAD_DIR/$SPI_BASE_IMAGE_FILENAME}"
@@ -27,6 +28,11 @@ SPI_IDBLOADER_LBA="${SPI_IDBLOADER_LBA:-${BOARD_SPI_IDBLOADER_LBA_DEFAULT:-64}}"
 SPI_UBOOT_ITB_LBA="${SPI_UBOOT_ITB_LBA:-${BOARD_SPI_UBOOT_ITB_LBA_DEFAULT:-16384}}"
 IDBLOADER_SIZE_BYTES="${IDBLOADER_SIZE_BYTES:-${BOARD_IDBLOADER_SIZE_BYTES_DEFAULT:-319488}}"
 UBOOT_ITB_SIZE_BYTES="${UBOOT_ITB_SIZE_BYTES:-${BOARD_UBOOT_ITB_SIZE_BYTES_DEFAULT:-1484288}}"
+UBOOT_ARCHIVE_FILENAME="${UBOOT_ARCHIVE_FILENAME:-${BOARD_UBOOT_ARCHIVE_FILENAME_DEFAULT:-}}"
+UBOOT_ARCHIVE_URL="${UBOOT_ARCHIVE_URL:-${BOARD_UBOOT_ARCHIVE_URL_DEFAULT:-}}"
+UBOOT_ARCHIVE_PATH="${UBOOT_ARCHIVE_PATH:-${UBOOT_ARCHIVE_FILENAME:+$DOWNLOAD_DIR/$UBOOT_ARCHIVE_FILENAME}}"
+UBOOT_ARCHIVE_IDBLOADER_MEMBER="${UBOOT_ARCHIVE_IDBLOADER_MEMBER:-${BOARD_UBOOT_ARCHIVE_IDBLOADER_MEMBER_DEFAULT:-}}"
+UBOOT_ARCHIVE_UBOOT_MEMBER="${UBOOT_ARCHIVE_UBOOT_MEMBER:-${BOARD_UBOOT_ARCHIVE_UBOOT_MEMBER_DEFAULT:-}}"
 BOOTLOADER_MODE="${BOOTLOADER_MODE:-${BOARD_BOOTLOADER_MODE:-spi-dd}}"
 
 FORCE_DOWNLOAD=0
@@ -88,9 +94,21 @@ require_cmd() {
 }
 
 require_cmd curl
-require_cmd dd
-require_cmd truncate
 require_cmd stat
+
+case "$UBOOT_FETCH_MODE" in
+  spi-image)
+    require_cmd dd
+    require_cmd truncate
+    ;;
+  archive-members)
+    require_cmd tar
+    ;;
+  *)
+    echo "Unsupported UBOOT_FETCH_MODE: $UBOOT_FETCH_MODE" >&2
+    exit 1
+    ;;
+esac
 
 mkdir -p "$DOWNLOAD_DIR" "$UBOOT_ASSETS_DIR"
 
@@ -118,34 +136,39 @@ if [ "$required_assets_ready" -eq 1 ] && [ "$FORCE_OVERWRITE" -ne 1 ]; then
   exit 0
 fi
 
-SPI_CHECKED=0
-SPI_AVAILABLE=0
+SOURCE_CHECKED=0
+SOURCE_AVAILABLE=0
 
-download_spi_base_if_needed() {
-  if [ "$SPI_CHECKED" -eq 1 ]; then
-    [ "$SPI_AVAILABLE" -eq 1 ]
+download_source_if_needed() {
+  local url="$1"
+  local path="$2"
+  local label="$3"
+
+  if [ "$SOURCE_CHECKED" -eq 1 ]; then
+    [ "$SOURCE_AVAILABLE" -eq 1 ]
     return
   fi
-  SPI_CHECKED=1
+  SOURCE_CHECKED=1
 
-  if [ ! -f "$SPI_BASE_IMAGE_PATH" ] || [ "$FORCE_DOWNLOAD" -eq 1 ]; then
-    if [ -z "$SPI_BASE_IMAGE_URL" ]; then
-      echo "SPI_BASE_IMAGE_URL is not set for BOARD=$BOARD and no local SPI_BASE_IMAGE_PATH exists." >&2
+  if [ ! -f "$path" ] || [ "$FORCE_DOWNLOAD" -eq 1 ]; then
+    if [ -z "$url" ]; then
+      echo "$label URL is not set for BOARD=$BOARD and no local source path exists." >&2
       return 1
     fi
-    echo "Downloading board SPI base image:"
-    echo "  URL:  $SPI_BASE_IMAGE_URL"
-    echo "  PATH: $SPI_BASE_IMAGE_PATH"
-    if ! curl -fL --retry 3 --retry-delay 2 "$SPI_BASE_IMAGE_URL" -o "$SPI_BASE_IMAGE_PATH"; then
-      echo "Failed to download SPI base image: $SPI_BASE_IMAGE_URL" >&2
-      SPI_AVAILABLE=0
+    echo "Downloading board bootloader source:"
+    echo "  KIND: $label"
+    echo "  URL:  $url"
+    echo "  PATH: $path"
+    if ! curl -fL --retry 3 --retry-delay 2 "$url" -o "$path"; then
+      echo "Failed to download bootloader source: $url" >&2
+      SOURCE_AVAILABLE=0
       return 1
     fi
   else
-    echo "Using existing SPI base image: $SPI_BASE_IMAGE_PATH"
+    echo "Using existing bootloader source: $path"
   fi
 
-  SPI_AVAILABLE=1
+  SOURCE_AVAILABLE=1
   return 0
 }
 
@@ -161,7 +184,7 @@ extract_from_spi_image() {
     return 0
   fi
 
-  if ! download_spi_base_if_needed; then
+  if ! download_source_if_needed "$SPI_BASE_IMAGE_URL" "$SPI_BASE_IMAGE_PATH" "spi-image"; then
     return 1
   fi
   if [ "$(stat -c%s "$SPI_BASE_IMAGE_PATH")" -ne "$SPI_IMAGE_SIZE_BYTES" ]; then
@@ -176,13 +199,57 @@ extract_from_spi_image() {
   echo "Installed from SPI image: $target_path"
 }
 
-if [ ! -f "$UBOOT_ASSETS_DIR/idbloader.img" ] || [ "$FORCE_OVERWRITE" -eq 1 ]; then
-  extract_from_spi_image "idbloader.img" "$SPI_IDBLOADER_LBA" "$IDBLOADER_SIZE_BYTES"
-fi
+extract_from_archive_member() {
+  local asset_name="$1"
+  local archive_member="$2"
+  local expected_size="$3"
+  local target_path="$UBOOT_ASSETS_DIR/$asset_name"
 
-if [ ! -f "$UBOOT_ASSETS_DIR/u-boot.itb" ] || [ "$FORCE_OVERWRITE" -eq 1 ]; then
-  extract_from_spi_image "u-boot.itb" "$SPI_UBOOT_ITB_LBA" "$UBOOT_ITB_SIZE_BYTES"
-fi
+  if [ -f "$target_path" ] && [ "$FORCE_OVERWRITE" -ne 1 ]; then
+    echo "Keeping existing asset: $target_path"
+    return 0
+  fi
+
+  if [ -z "$UBOOT_ARCHIVE_PATH" ] || [ -z "$archive_member" ]; then
+    echo "Archive fetch mode requires UBOOT_ARCHIVE_PATH and member names for BOARD=$BOARD." >&2
+    return 1
+  fi
+
+  if ! download_source_if_needed "$UBOOT_ARCHIVE_URL" "$UBOOT_ARCHIVE_PATH" "archive-members"; then
+    return 1
+  fi
+
+  tar -xOf "$UBOOT_ARCHIVE_PATH" "$archive_member" >"$target_path"
+  chmod 0644 "$target_path"
+
+  if [ -n "$expected_size" ] && [ "$(stat -c%s "$target_path")" -ne "$expected_size" ]; then
+    echo "Unexpected extracted asset size for $asset_name: $(stat -c%s "$target_path") (expected $expected_size)" >&2
+    return 1
+  fi
+
+  echo "Installed from archive member: $target_path"
+}
+
+case "$UBOOT_FETCH_MODE" in
+  spi-image)
+    if [ ! -f "$UBOOT_ASSETS_DIR/idbloader.img" ] || [ "$FORCE_OVERWRITE" -eq 1 ]; then
+      extract_from_spi_image "idbloader.img" "$SPI_IDBLOADER_LBA" "$IDBLOADER_SIZE_BYTES"
+    fi
+
+    if [ ! -f "$UBOOT_ASSETS_DIR/u-boot.itb" ] || [ "$FORCE_OVERWRITE" -eq 1 ]; then
+      extract_from_spi_image "u-boot.itb" "$SPI_UBOOT_ITB_LBA" "$UBOOT_ITB_SIZE_BYTES"
+    fi
+    ;;
+  archive-members)
+    if [ ! -f "$UBOOT_ASSETS_DIR/idbloader.img" ] || [ "$FORCE_OVERWRITE" -eq 1 ]; then
+      extract_from_archive_member "idbloader.img" "$UBOOT_ARCHIVE_IDBLOADER_MEMBER" "$IDBLOADER_SIZE_BYTES"
+    fi
+
+    if [ ! -f "$UBOOT_ASSETS_DIR/u-boot.itb" ] || [ "$FORCE_OVERWRITE" -eq 1 ]; then
+      extract_from_archive_member "u-boot.itb" "$UBOOT_ARCHIVE_UBOOT_MEMBER" "$UBOOT_ITB_SIZE_BYTES"
+    fi
+    ;;
+esac
 
 if [ ! -f "$UBOOT_ASSETS_DIR/idbloader.img" ] || [ ! -f "$UBOOT_ASSETS_DIR/u-boot.itb" ]; then
   echo "Failed to prepare required U-Boot assets (idbloader.img, u-boot.itb)." >&2
