@@ -16,6 +16,7 @@ KERNEL_BRANCH="${KERNEL_BRANCH:-${BOARD_KERNEL_BRANCH_DEFAULT:-linux-6.1-stan-rk
 KERNEL_DIR="${KERNEL_DIR:-$REPO_ROOT/src/radxa-kernel-$BOARD}"
 KERNEL_EXPECTED_DTS="${KERNEL_EXPECTED_DTS:-$BOARD_KERNEL_EXPECTED_DTS}"
 KERNEL_PATCH_DIR="${KERNEL_PATCH_DIR:-${BOARD_KERNEL_PATCH_DIR:-$REPO_ROOT/boards/$BOARD/kernel/patches}}"
+KERNEL_PREPARE_SCRIPT="${KERNEL_PREPARE_SCRIPT:-${BOARD_KERNEL_PREPARE_SCRIPT:-}}"
 
 if [ -d "$KERNEL_DIR/.git" ]; then
   echo "Refreshing existing kernel checkout in $KERNEL_DIR"
@@ -46,6 +47,17 @@ if [ -d "$KERNEL_PATCH_DIR" ]; then
       fi
     done
   fi
+fi
+
+if [ -n "$KERNEL_PREPARE_SCRIPT" ]; then
+  if [ ! -x "$KERNEL_PREPARE_SCRIPT" ]; then
+    echo "Kernel prepare script is not executable: $KERNEL_PREPARE_SCRIPT" >&2
+    exit 1
+  fi
+
+  echo "Running board kernel prepare script: $KERNEL_PREPARE_SCRIPT"
+  BOARD="$BOARD" KERNEL_DIR="$KERNEL_DIR" REPO_ROOT="$REPO_ROOT" \
+    "$KERNEL_PREPARE_SCRIPT"
 fi
 
 EXPECTED_DTS_PATH="$KERNEL_DIR/$KERNEL_EXPECTED_DTS"
