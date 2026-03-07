@@ -61,6 +61,11 @@ e that the change summary is in the body of the commit message
   - For shell scripts, do not break the `#!` first line declaration with SPDX
   - For files that are downloaded, do not claim or modify any licence information
 
+## Development
+- After each set of changes, the code should be committed into the local git repository
+- Each git commit should have a summary of the changes in the commit
+  - If a summary has been displayed in the chat, then this should be used as the basis for the git summary
+
 ## E54C Guides
 - Radxa documentation about the E54C: https://docs.radxa.com/en/e/e54c
 - The Radxa guide to booting the E54C from NVMe: https://docs.radxa.com/en/e/e54c/getting-started/install-os/boot_from_nvme
