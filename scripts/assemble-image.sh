@@ -232,6 +232,8 @@ fi
 \$BB mount -t devtmpfs devtmpfs /dev
 \$BB mkdir -p /dev/pts /dev/shm
 
+log "cmdline root=\$root_spec rootfstype=\$root_fstype diskless=\$diskless_mode overlay=\$overlay_mode tmpfs_size=\${diskless_tmpfs_size_mib:-auto}"
+
 if [ "\$root_delay" -gt 0 ] 2>/dev/null; then
   \$BB sleep "\$root_delay"
 fi
@@ -304,6 +306,7 @@ elapsed=0
 while :; do
   root_dev="\$(resolve_block_device "\$root_spec" || true)"
   if [ -n "\$root_dev" ] && [ -b "\$root_dev" ]; then
+    log "resolved root device: \$root_dev"
     break
   fi
 
@@ -343,6 +346,7 @@ if [ "\$overlay_mode" = "yes" ] || [ "\$overlay_mode" = "1" ]; then
   \$BB mount --move /ovl /newroot/.overlay
 else
   if [ "\$diskless_mode" = "yes" ] || [ "\$diskless_mode" = "1" ]; then
+    log "mounting source root read-only"
     \$BB mkdir -p /media/rootsrc
     if ! \$BB mount -o ro -t "\$root_fstype" "\$root_dev" /media/rootsrc 2>/dev/null; then
       \$BB mount -o ro "\$root_dev" /media/rootsrc
@@ -351,11 +355,15 @@ else
     if [ -n "\$diskless_tmpfs_size_mib" ] && [ "\$diskless_tmpfs_size_mib" -gt 0 ]; then
       tmpfs_opts="\${tmpfs_opts},size=\${diskless_tmpfs_size_mib}m"
     fi
+    log "mounting diskless tmpfs: \$tmpfs_opts"
     \$BB mount -t tmpfs -o "\$tmpfs_opts" tmpfs /newroot
+    log "copying rootfs into tmpfs"
     (cd /media/rootsrc && \$BB tar -cf - .) | (cd /newroot && \$BB tar -xf -)
+    log "rootfs copy complete"
     \$BB mkdir -p /newroot/.diskless-source
     \$BB mount --move /media/rootsrc /newroot/.diskless-source
   else
+    log "mounting writable root"
     mount_root rw
   fi
 fi
@@ -365,6 +373,7 @@ fi
 \$BB mount --move /sys /newroot/sys
 \$BB mount --move /dev /newroot/dev
 
+log "switch_root to /sbin/init"
 exec \$BB switch_root /newroot /sbin/init
 EOF
   chmod 0755 "$initramfs_root/init"
