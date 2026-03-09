@@ -188,14 +188,27 @@ set -u
 
 BB=/bin/busybox
 PATH=/bin:/sbin
+SERIAL_TTY="${SERIAL_TTY}"
+SERIAL_DEV="/dev/${SERIAL_TTY}"
+
+\$BB mkdir -p /dev
+[ -c /dev/console ] || \$BB mknod -m 600 /dev/console c 5 1 2>/dev/null || true
+[ -c /dev/null ] || \$BB mknod -m 666 /dev/null c 1 3 2>/dev/null || true
+
+emit_serial() {
+  [ -c "\$SERIAL_DEV" ] || [ -e "\$SERIAL_DEV" ] || return 0
+  echo "\$1" >"\$SERIAL_DEV" 2>/dev/null || true
+}
 
 echo "<6>[initramfs] /init starting" >/dev/kmsg 2>/dev/null || true
 echo "[initramfs] /init starting" >/dev/console 2>/dev/null || true
+emit_serial "[initramfs] /init starting"
 exec >/dev/console 2>&1 </dev/console || true
 
 log() {
   echo "<6>[initramfs] \$*" >/dev/kmsg 2>/dev/null || true
   echo "[initramfs] \$*" >/dev/console 2>/dev/null || echo "[initramfs] \$*"
+  emit_serial "[initramfs] \$*"
 }
 
 panic() {

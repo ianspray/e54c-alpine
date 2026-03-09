@@ -341,6 +341,7 @@ fi
 cat >"$ROOTFS_DIR/etc/inittab" <<EOF
 # /etc/inittab
 
+::sysinit:/bin/sh -c 'echo "<6>[userspace] pid1 reached sysinit" >/dev/kmsg 2>/dev/null || true; echo "[userspace] pid1 reached sysinit" >/dev/console 2>/dev/null || true; if [ -c /dev/${SERIAL_TTY} ]; then echo "[userspace] pid1 reached sysinit" >/dev/${SERIAL_TTY} 2>/dev/null || true; fi'
 ::sysinit:/sbin/openrc sysinit
 ::sysinit:/sbin/openrc boot
 ::wait:/sbin/openrc default
