@@ -497,10 +497,9 @@ build_from_friendlyelec_image() {
     echo "Using existing FriendlyElec image archive: $archive_path"
   fi
 
-  local tmp_work
-  tmp_work="$(mktemp -d)"
-  cleanup_fe_tmp() { rm -rf "$tmp_work"; }
-  trap cleanup_fe_tmp EXIT
+  _fe_tmp_work="$(mktemp -d)"
+  trap 'rm -rf "$_fe_tmp_work"' EXIT
+  local tmp_work="$_fe_tmp_work"
 
   # Extract kernel Image (KRNL header = 8 bytes, followed by raw ARM64 Image)
   echo "Extracting kernel Image from archive member: $fe_kernel_member"
