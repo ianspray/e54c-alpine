@@ -7,14 +7,23 @@ PAYLOAD_SHA256="/opt/r3s-updater/nvme-image.img.zst.sha256"
 TARGET_DEVICE="${TARGET_DEVICE:-/dev/mmcblk0}"
 ROOT_PARTLABEL_REQUIRED="${ROOT_PARTLABEL_REQUIRED:-r3s-updater-rootfs}"
 TARGET_WAIT_SECONDS="${TARGET_WAIT_SECONDS:-120}"
+SERIAL_TTY="${SERIAL_TTY:-ttyS2}"
+SERIAL_DEV="/dev/$SERIAL_TTY"
 UPDATER_EFI_MOUNT="/run/r3s-updater-efi"
 LOCK_DIR="/run/r3s-usb-update.lock"
 BOOT_DONE_MARKER="/run/r3s-usb-update.done"
 
+emit_serial() {
+  [ -c "$SERIAL_DEV" ] || [ -e "$SERIAL_DEV" ] || return 0
+  echo "$1" >"$SERIAL_DEV" 2>/dev/null || true
+}
+
 log() {
-  echo "<6>[r3s-usb-updater] $*" >/dev/kmsg 2>/dev/null || true
-  echo "[r3s-usb-updater] $*" >/dev/console 2>/dev/null || true
-  echo "[r3s-usb-updater] $*"
+  local msg="[r3s-usb-updater] $*"
+  echo "<6>$msg" >/dev/kmsg 2>/dev/null || true
+  echo "$msg" >/dev/console 2>/dev/null || true
+  emit_serial "$msg"
+  echo "$msg"
 }
 
 log "R3S updater image active."

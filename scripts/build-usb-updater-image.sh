@@ -124,7 +124,7 @@ if [ -f "$UPDATER_ROOTFS_DIR/etc/inittab" ]; then
   inittab_tmp="$(mktemp)"
   {
     printf '%s\n' '# updater debug marker'
-    printf '%s\n' '::sysinit:/bin/sh -c '\''echo "<6>[updater-userspace] pid1 reached sysinit" >/dev/kmsg 2>/dev/null || true; echo "[updater-userspace] pid1 reached sysinit" >/dev/console 2>/dev/null || true'\'''
+    printf '%s\n' "::sysinit:/bin/sh -c 'echo \"<6>[updater-userspace] pid1 reached sysinit\" >/dev/kmsg 2>/dev/null || true; echo \"[updater-userspace] pid1 reached sysinit\" >/dev/console 2>/dev/null || true; if [ -c /dev/${SERIAL_TTY} ]; then echo \"[updater-userspace] pid1 reached sysinit\" >/dev/${SERIAL_TTY} 2>/dev/null || true; fi'"
     cat "$UPDATER_ROOTFS_DIR/etc/inittab"
   } >"$inittab_tmp"
   mv "$inittab_tmp" "$UPDATER_ROOTFS_DIR/etc/inittab"

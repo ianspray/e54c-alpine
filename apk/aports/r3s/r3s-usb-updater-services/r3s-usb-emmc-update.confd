@@ -2,3 +2,4 @@
 target_device="/dev/mmcblk0"
 root_partlabel="r3s-updater-rootfs"
 target_wait_seconds="120"
+serial_tty="ttyS2"
