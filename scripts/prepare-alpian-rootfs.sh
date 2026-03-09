@@ -32,6 +32,9 @@ LOCAL_CUSTOM_APK_REPO_DIR="${LOCAL_CUSTOM_APK_REPO_DIR:-$REPO_ROOT/build/apk-rep
 LOCAL_CUSTOM_APK_KEYS_DIR="${LOCAL_CUSTOM_APK_KEYS_DIR:-$REPO_ROOT/build/apk-repo/keys}"
 SERIAL_TTY="${SERIAL_TTY:-${BOARD_SERIAL_TTY:-ttyFIQ0}}"
 SERIAL_BAUD="${SERIAL_BAUD:-${BOARD_SERIAL_BAUD:-1500000}}"
+# UART links cannot negotiate terminal capabilities, so default to a plain
+# ASCII-safe terminal type and let richer clients opt in explicitly.
+SERIAL_TERM="${SERIAL_TERM:-${BOARD_SERIAL_TERM:-dumb}}"
 ROOT_AUTHORIZED_KEYS_FILE="${ROOT_AUTHORIZED_KEYS_FILE-__AUTO__}"
 ROOT_PASSWORD_HASH="${ROOT_PASSWORD_HASH:-\$6\$e54c\$AvSUgOTK89YCT1RHhqB/SfsK3J5itEI.1QMfd2fRmcUgYla4h4UUBMbCOKPm89stfDAoWvWCA8E0zamUvTN0A/}"
 ROOT_PASSWORD_PLAIN="${ROOT_PASSWORD_PLAIN:-}"
@@ -346,7 +349,7 @@ cat >"$ROOTFS_DIR/etc/inittab" <<EOF
 ::sysinit:/sbin/openrc boot
 ::wait:/sbin/openrc default
 
-${SERIAL_TTY}::respawn:/sbin/getty -L ${SERIAL_BAUD} ${SERIAL_TTY} vt100
+${SERIAL_TTY}::respawn:/sbin/getty -L ${SERIAL_BAUD} ${SERIAL_TTY} ${SERIAL_TERM}
 
 ::ctrlaltdel:/sbin/reboot
 ::shutdown:/sbin/openrc shutdown
