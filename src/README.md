@@ -248,6 +248,9 @@ scripts/build-usb-updater-image.sh
 
 - Override serial device/baud:
   - `SERIAL_TTY=ttyS2 SERIAL_BAUD=1500000 scripts/prepare-alpian-rootfs.sh`
+- Override serial terminal type:
+  - `SERIAL_TERM=dumb scripts/prepare-alpian-rootfs.sh`
+  - use `SERIAL_TERM=xterm-256color` only when the attached serial client understands ANSI color/control sequences
 - Override default package set:
   - Edit `boards/alpian/alpine/packages.txt` for common packages
   - Edit `boards/<board>/alpine/packages.txt` for board-specific overlays
