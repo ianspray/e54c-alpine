@@ -71,6 +71,7 @@ increment_mac() {
 set_iface_mac() {
   iface="$1"
   mac="$2"
+  was_up=0
 
   for _ in 1 2 3 4 5; do
     if ip link show dev "$iface" >/dev/null 2>&1; then
@@ -82,9 +83,14 @@ set_iface_mac() {
   ip link show dev "$iface" >/dev/null 2>&1 || return 0
   current_mac="$(cat "/sys/class/net/$iface/address" 2>/dev/null || true)"
   [ "$current_mac" = "$mac" ] && return 0
+  if ip link show dev "$iface" 2>/dev/null | grep -q "UP"; then
+    was_up=1
+  fi
   ip link set dev "$iface" down >/dev/null 2>&1 || true
   ip link set dev "$iface" address "$mac"
-  ip link set dev "$iface" up >/dev/null 2>&1 || true
+  if [ "$was_up" -eq 1 ]; then
+    ip link set dev "$iface" up >/dev/null 2>&1 || true
+  fi
 }
 
 serial="$(read_serial | normalize_hex || true)"

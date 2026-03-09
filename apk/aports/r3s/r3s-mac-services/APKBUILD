@@ -2,7 +2,7 @@
 # Maintainer: IWS <iws@toothless.local>
 pkgname=r3s-mac-services
 pkgver=0.1.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Deterministic Ethernet MAC assignment for NanoPi R3S"
 url="https://example.invalid/r3s-alpian"
 arch="noarch"
@@ -21,6 +21,6 @@ package() {
 }
 
 sha512sums="
-e6c3adb941a430916519096ec3300af0c7aef73eb8fc934d42131f8c440bc920b8f261f7c07433a4ae7b5bf2b05ee87dc777e7fd2966bdc6c28ed6cf8074c0c0  r3s-set-macs.sh
+a96e9af42e2496880080b0655401380641bcfa1cfccbd880c674cae8e591624358d7dfbb6b969e8db9c51f39067b872613631390200a403b78efdba79a2d1f95  r3s-set-macs.sh
 fd839b4c49034a1cc721b12ab958fb38163c4b84631242422226a206eca374ae523c279ffe9f3424ebf24f14fbd336164e8be0444512a4021bec87600affbb77  r3s-set-macs.initd
 "
