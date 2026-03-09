@@ -35,6 +35,12 @@ RPI_IMAGE_FILENAME="${RPI_IMAGE_FILENAME:-${BOARD_RPI_RELEASE_IMAGE_FILENAME_DEF
 RPI_IMAGE_EXTRACT_MODE="${RPI_IMAGE_EXTRACT_MODE:-auto}"
 DOWNLOAD_DIR="${DOWNLOAD_DIR:-$REPO_ROOT/build/downloads}"
 
+FE_IMAGE_ARCHIVE_URL="${FE_IMAGE_ARCHIVE_URL:-${BOARD_FRIENDLYELEC_IMAGE_ARCHIVE_URL:-}}"
+FE_IMAGE_ARCHIVE_FILENAME="${FE_IMAGE_ARCHIVE_FILENAME:-${BOARD_FRIENDLYELEC_IMAGE_ARCHIVE_FILENAME:-}}"
+FE_IMAGE_KERNEL_MEMBER="${FE_IMAGE_KERNEL_MEMBER:-${BOARD_FRIENDLYELEC_IMAGE_KERNEL_MEMBER:-}}"
+FE_IMAGE_RESOURCE_MEMBER="${FE_IMAGE_RESOURCE_MEMBER:-${BOARD_FRIENDLYELEC_IMAGE_RESOURCE_MEMBER:-}}"
+FE_IMAGE_ROOTFS_MEMBER="${FE_IMAGE_ROOTFS_MEMBER:-${BOARD_FRIENDLYELEC_IMAGE_ROOTFS_MEMBER:-}}"
+
 CASE_INSENSITIVE_WORKSPACE=0
 
 is_case_insensitive_dir() {
@@ -461,6 +467,150 @@ build_from_alpine_rpi_image() {
   printf '%s\n' "$RELEASE_DIR" >"$CURRENT_ARTIFACT_FILE"
 }
 
+build_from_friendlyelec_image() {
+  local fe_archive_url fe_archive_filename fe_kernel_member fe_resource_member fe_rootfs_member
+  fe_archive_url="${FE_IMAGE_ARCHIVE_URL}"
+  fe_archive_filename="${FE_IMAGE_ARCHIVE_FILENAME}"
+  fe_kernel_member="${FE_IMAGE_KERNEL_MEMBER}"
+  fe_resource_member="${FE_IMAGE_RESOURCE_MEMBER}"
+  fe_rootfs_member="${FE_IMAGE_ROOTFS_MEMBER}"
+
+  if [ -z "$fe_archive_url" ]; then
+    echo "FE_IMAGE_ARCHIVE_URL (or BOARD_FRIENDLYELEC_IMAGE_ARCHIVE_URL) must be set for friendlyelec-image mode." >&2
+    exit 1
+  fi
+  if [ -z "$fe_kernel_member" ] || [ -z "$fe_resource_member" ] || [ -z "$fe_rootfs_member" ]; then
+    echo "BOARD_FRIENDLYELEC_IMAGE_KERNEL_MEMBER, _RESOURCE_MEMBER, and _ROOTFS_MEMBER must all be set." >&2
+    exit 1
+  fi
+  if [ -z "$fe_archive_filename" ]; then
+    fe_archive_filename="$(basename "$fe_archive_url")"
+  fi
+
+  mkdir -p "$ARTIFACTS_DIR" "$DOWNLOAD_DIR"
+
+  local archive_path="$DOWNLOAD_DIR/$fe_archive_filename"
+  if [ ! -f "$archive_path" ]; then
+    echo "Downloading FriendlyElec image assets: $fe_archive_url"
+    curl -fL --retry 3 --retry-delay 2 "$fe_archive_url" -o "$archive_path"
+  else
+    echo "Using existing FriendlyElec image archive: $archive_path"
+  fi
+
+  local tmp_work
+  tmp_work="$(mktemp -d)"
+  cleanup_fe_tmp() { rm -rf "$tmp_work"; }
+  trap cleanup_fe_tmp EXIT
+
+  # Extract kernel Image (KRNL header = 8 bytes, followed by raw ARM64 Image)
+  echo "Extracting kernel Image from archive member: $fe_kernel_member"
+  local kernel_img="$tmp_work/kernel.img"
+  tar -xOf "$archive_path" "$fe_kernel_member" >"$kernel_img"
+
+  local magic_bytes
+  magic_bytes="$(dd if="$kernel_img" bs=1 count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')"
+  if [ "$magic_bytes" != "4b524e4c" ]; then
+    echo "Unexpected kernel.img magic: $magic_bytes (expected 4b524e4c = KRNL)" >&2
+    exit 1
+  fi
+  # Skip the 8-byte KRNL header to produce the raw ARM64 Image
+  tail -c +9 "$kernel_img" >"$tmp_work/Image"
+  echo "Extracted kernel Image: $(stat -c%s "$tmp_work/Image") bytes"
+
+  # Extract DTBs from resource.img using Rockchip RSCE format
+  echo "Extracting resource image from archive member: $fe_resource_member"
+  local resource_img="$tmp_work/resource.img"
+  tar -xOf "$archive_path" "$fe_resource_member" >"$resource_img"
+
+  local dtb_dir="$tmp_work/dtbs"
+  mkdir -p "$dtb_dir"
+  echo "Extracting DTBs from resource image: $KERNEL_DTBS"
+  python3 - "$resource_img" "$KERNEL_DTBS" "$dtb_dir" <<'PYEOF'
+import struct, sys, os
+resource_path, dtb_names_str, out_dir = sys.argv[1], sys.argv[2], sys.argv[3]
+dtb_names = dtb_names_str.split()
+os.makedirs(out_dir, exist_ok=True)
+with open(resource_path, 'rb') as f:
+    data = f.read()
+if data[0:4] != b'RSCE':
+    print(f'Not an RSCE resource image: magic={data[0:4]!r}', file=sys.stderr)
+    sys.exit(1)
+header_blocks = data[8]
+entry_size_blocks = data[9]
+entry_count = struct.unpack('<I', data[12:16])[0]
+found = set()
+for i in range(entry_count):
+    off = (header_blocks + i * entry_size_blocks) * 512
+    if off + 268 > len(data) or data[off:off+4] != b'ENTR':
+        continue
+    name_bytes = data[off+4:off+260]
+    nul = name_bytes.find(b'\x00')
+    name = (name_bytes[:nul] if nul >= 0 else name_bytes).decode('utf-8', errors='replace')
+    if name in dtb_names:
+        addr = struct.unpack('<I', data[off+260:off+264])[0]
+        size = struct.unpack('<I', data[off+264:off+268])[0]
+        with open(os.path.join(out_dir, name), 'wb') as out:
+            out.write(data[addr * 512:addr * 512 + size])
+        print(f'Extracted {name} ({size} bytes)')
+        found.add(name)
+missing = [n for n in dtb_names if n not in found]
+if missing:
+    print(f'ERROR: DTBs not found in resource image: {missing}', file=sys.stderr)
+    sys.exit(1)
+PYEOF
+
+  # Extract kernel modules from the nested rootfs.tgz in the archive
+  echo "Extracting rootfs archive from: $fe_rootfs_member"
+  local rootfs_tgz="$tmp_work/rootfs.tgz"
+  tar -xOf "$archive_path" "$fe_rootfs_member" >"$rootfs_tgz"
+
+  local modules_stage="$tmp_work/modules_stage"
+  mkdir -p "$modules_stage"
+  echo "Extracting kernel modules from rootfs archive"
+  tar -xzf "$rootfs_tgz" -C "$modules_stage" --strip-components=1 rootfs/lib/modules
+
+  KERNEL_RELEASE=""
+  for kdir in "$modules_stage/lib/modules"/*/; do
+    [ -d "$kdir" ] || continue
+    KERNEL_RELEASE="$(basename "$kdir")"
+    break
+  done
+  if [ -z "$KERNEL_RELEASE" ]; then
+    echo "Unable to determine kernel release from extracted modules." >&2
+    exit 1
+  fi
+
+  RELEASE_DIR="$ARTIFACTS_DIR/$KERNEL_RELEASE"
+  rm -rf "$RELEASE_DIR"
+  mkdir -p "$RELEASE_DIR/boot/dtbs/$KERNEL_DTB_SUBDIR" "$RELEASE_DIR/rootfs/lib"
+  cp "$tmp_work/Image" "$RELEASE_DIR/boot/Image"
+
+  local copied_dtbs=0
+  for dtb in $KERNEL_DTBS; do
+    if [ -f "$dtb_dir/$dtb" ]; then
+      cp "$dtb_dir/$dtb" "$RELEASE_DIR/boot/dtbs/$KERNEL_DTB_SUBDIR/$dtb"
+      copied_dtbs=$((copied_dtbs + 1))
+    fi
+  done
+  if [ "$copied_dtbs" -eq 0 ]; then
+    echo "No DTBs were copied to artifact directory." >&2
+    exit 1
+  fi
+
+  if [ "$CASE_INSENSITIVE_WORKSPACE" -eq 1 ]; then
+    tar -C "$modules_stage" -cf "$RELEASE_DIR/modules-rootfs.tar" lib/modules
+    rm -rf "$RELEASE_DIR/rootfs"
+    echo "Stored modules in $RELEASE_DIR/modules-rootfs.tar (case-insensitive workspace)."
+  else
+    cp -a "$modules_stage/lib/modules" "$RELEASE_DIR/rootfs/lib/"
+  fi
+
+  echo "Kernel artifacts prepared from FriendlyElec image archive."
+  echo "Kernel release: $KERNEL_RELEASE"
+  echo "Artifacts: $RELEASE_DIR"
+  printf '%s\n' "$RELEASE_DIR" >"$CURRENT_ARTIFACT_FILE"
+}
+
 case "$KERNEL_SOURCE_MODE" in
   radxa-git)
     build_from_radxa_source
@@ -468,9 +618,12 @@ case "$KERNEL_SOURCE_MODE" in
   alpine-rpi-image)
     build_from_alpine_rpi_image
     ;;
+  friendlyelec-image)
+    build_from_friendlyelec_image
+    ;;
   *)
     echo "Unsupported KERNEL_SOURCE_MODE: $KERNEL_SOURCE_MODE" >&2
-    echo "Supported: radxa-git, alpine-rpi-image" >&2
+    echo "Supported: radxa-git, alpine-rpi-image, friendlyelec-image" >&2
     exit 1
     ;;
 esac

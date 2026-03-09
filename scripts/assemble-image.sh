@@ -184,10 +184,14 @@ if [ "$ENABLE_INITRAMFS_BOOT" = "1" ]; then
 
   cat >"$initramfs_root/init" <<EOF
 #!/bin/busybox sh
-set -eu
+set -u
 
 BB=/bin/busybox
 PATH=/bin:/sbin
+
+echo "<6>[initramfs] /init starting" >/dev/kmsg 2>/dev/null || true
+echo "[initramfs] /init starting" >/dev/console 2>/dev/null || true
+exec >/dev/console 2>&1 </dev/console || true
 
 log() {
   echo "<6>[initramfs] \$*" >/dev/kmsg 2>/dev/null || true
@@ -208,7 +212,7 @@ root_wait_forever=0
 root_wait_timeout=30
 root_delay=0
 
-\$BB mount -t proc proc /proc
+\$BB mount -t proc proc /proc || panic "Failed to mount /proc"
 CMDLINE="\$("\$BB" cat /proc/cmdline 2>/dev/null || true)"
 
 for arg in \$CMDLINE; do
@@ -229,9 +233,9 @@ if [ -n "\$diskless_tmpfs_size_mib" ] && ! \$BB echo "\$diskless_tmpfs_size_mib"
   panic "Invalid diskless_tmpfs_size value: \$diskless_tmpfs_size_mib"
 fi
 
-\$BB mount -t sysfs sysfs /sys
-\$BB mount -t devtmpfs devtmpfs /dev
-\$BB mkdir -p /dev/pts /dev/shm
+\$BB mount -t sysfs sysfs /sys || panic "Failed to mount /sys"
+\$BB mount -t devtmpfs devtmpfs /dev || panic "Failed to mount /dev"
+\$BB mkdir -p /dev/pts /dev/shm || panic "Failed to prepare /dev"
 
 log "cmdline root=\$root_spec rootfstype=\$root_fstype diskless=\$diskless_mode overlay=\$overlay_mode tmpfs_size=\${diskless_tmpfs_size_mib:-auto}"
 
@@ -393,10 +397,21 @@ CMDLINE_IMMUTABLE_DEFAULT="${BOARD_KERNEL_CMDLINE_IMMUTABLE_DEFAULT:-${CMDLINE_B
 CMDLINE_MAINTENANCE_DEFAULT="${BOARD_KERNEL_CMDLINE_MAINTENANCE_DEFAULT:-${CMDLINE_BASE} rw}"
 CMDLINE_IMMUTABLE="${KERNEL_CMDLINE_IMMUTABLE:-${KERNEL_CMDLINE:-$CMDLINE_IMMUTABLE_DEFAULT}}"
 CMDLINE_MAINTENANCE="${KERNEL_CMDLINE_MAINTENANCE:-$CMDLINE_MAINTENANCE_DEFAULT}"
+append_rdinit_if_needed() {
+  case " $1 " in
+    *" rdinit="*|*" init="*) printf '%s\n' "$1" ;;
+    *) printf '%s rdinit=/init\n' "$1" ;;
+  esac
+}
+
+if [ "$ENABLE_INITRAMFS_BOOT" = "1" ]; then
+  CMDLINE_IMMUTABLE="$(append_rdinit_if_needed "$CMDLINE_IMMUTABLE")"
+  CMDLINE_MAINTENANCE="$(append_rdinit_if_needed "$CMDLINE_MAINTENANCE")"
+fi
 if [[ "$CMDLINE_IMMUTABLE" == *"diskless=yes"* ]]; then
-  IMMUTABLE_MENU_LABEL="Alpine Linux (diskless)"
+  IMMUTABLE_MENU_LABEL="Alpian Linux (diskless)"
 else
-  IMMUTABLE_MENU_LABEL="Alpine Linux"
+  IMMUTABLE_MENU_LABEL="Alpian Linux"
 fi
 INITRD_LINE=""
 if [ "$ENABLE_INITRAMFS_BOOT" = "1" ]; then
