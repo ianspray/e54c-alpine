@@ -21,10 +21,6 @@ fi
 cat >>"$dts_file" <<'EOF'
 
 /* alpian-r3s-overrides */
-/ {
-	/delete-node/ fiq-debugger;
-};
-
 &chosen {
 	stdout-path = "serial2:1500000n8";
 	/delete-property/ bootargs;

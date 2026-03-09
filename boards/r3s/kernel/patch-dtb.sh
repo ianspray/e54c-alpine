@@ -141,19 +141,4 @@ finally:
 print('  DTB recompiled.')
 PYEOF
 
-# Disable fiq-debugger (conflicts with ttyS2 serial console).
-# Try known paths; skip silently if absent (the Python pass may already cover it
-# if the node label contains 'npu', but fiq-debugger does not).
-_disabled_fiq=0
-for _path in /fiq-debugger /chosen/fiq-debugger; do
-    if fdtput -t s "$dtb_file" "$_path" status disabled 2>/dev/null; then
-        echo "  disabled: $_path"
-        _disabled_fiq=1
-        break
-    fi
-done
-if [ "$_disabled_fiq" -eq 0 ]; then
-    echo "  not found (skipping): /fiq-debugger"
-fi
-
 echo "DTB patch complete."
