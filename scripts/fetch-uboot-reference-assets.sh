@@ -216,6 +216,7 @@ extract_from_compressed_disk_image() {
   local size_bytes="$3"
   local target_path="$UBOOT_ASSETS_DIR/$asset_name"
   local sectors=0
+  local saved_shellopts=""
 
   if [ -f "$target_path" ] && [ "$FORCE_OVERWRITE" -ne 1 ]; then
     echo "Keeping existing asset: $target_path"
@@ -232,7 +233,14 @@ extract_from_compressed_disk_image() {
   fi
 
   sectors=$(((size_bytes + 511) / 512))
-  xz -dc "$DISK_IMAGE_PATH" | dd of="$target_path" bs=512 skip="$lba" count="$sectors" status=none
+  saved_shellopts="$(set +o)"
+  set +o pipefail
+  if ! xz -dc "$DISK_IMAGE_PATH" | dd of="$target_path" bs=512 skip="$lba" count="$sectors" status=none; then
+    eval "$saved_shellopts"
+    echo "Failed to extract $asset_name from compressed disk image: $DISK_IMAGE_PATH" >&2
+    return 1
+  fi
+  eval "$saved_shellopts"
   truncate -s "$size_bytes" "$target_path"
   chmod 0644 "$target_path"
   echo "Installed from compressed disk image: $target_path"
