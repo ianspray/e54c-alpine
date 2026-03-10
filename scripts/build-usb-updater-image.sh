@@ -29,6 +29,7 @@ UPDATER_PAYLOAD_FILE="${UPDATER_PAYLOAD_FILE:-$UPDATER_PAYLOAD_DIR/nvme-image.im
 UPDATER_PAYLOAD_SHA256="${UPDATER_PAYLOAD_SHA256:-$UPDATER_PAYLOAD_FILE.sha256}"
 UPDATER_OVERHEAD_MIB="${UPDATER_OVERHEAD_MIB:-2048}"
 USB_IMAGE_SIZE="${USB_IMAGE_SIZE:-}"
+USB_IMAGE_MIN_SIZE_MIB="${USB_IMAGE_MIN_SIZE_MIB:-12288}"
 UPDATER_GUESTFS_TMPDIR="${UPDATER_GUESTFS_TMPDIR:-$UPDATER_WORK_DIR/guestfs-tmp}"
 UPDATER_TARGET_DEVICE="${UPDATER_TARGET_DEVICE:-${BOARD_UPDATER_TARGET_DEVICE_DEFAULT:-${UPDATER_TARGET_NVME_DEVICE:-/dev/nvme0n1}}}"
 UPDATER_ROOT_PARTLABEL="${UPDATER_ROOT_PARTLABEL:-${BOARD}-updater-rootfs}"
@@ -182,8 +183,8 @@ if [ -z "$USB_IMAGE_SIZE" ]; then
   overhead_bytes=$((UPDATER_OVERHEAD_MIB * 1024 * 1024))
   required_bytes=$((payload_bytes + overhead_bytes))
   required_mib=$(((required_bytes + 1024 * 1024 - 1) / (1024 * 1024)))
-  if [ "$required_mib" -lt 4096 ]; then
-    required_mib=4096
+  if [ "$required_mib" -lt "$USB_IMAGE_MIN_SIZE_MIB" ]; then
+    required_mib="$USB_IMAGE_MIN_SIZE_MIB"
   fi
   USB_IMAGE_SIZE="${required_mib}M"
 fi

@@ -25,7 +25,7 @@ export LIBGUESTFS_BACKEND_SETTINGS="${LIBGUESTFS_BACKEND_SETTINGS:-force_tcg}"
 export LIBGUESTFS_MEMSIZE="${LIBGUESTFS_MEMSIZE:-1024}"
 
 IMAGE_PATH="${IMAGE_PATH:-$REPO_ROOT/build/${BOARD}-alpian-custom.img}"
-IMAGE_SIZE="${IMAGE_SIZE:-8G}"
+IMAGE_SIZE="${IMAGE_SIZE:-12G}"
 ROOTFS_TAR="${ROOTFS_TAR:-$REPO_ROOT/build/alpine-rootfs.tar}"
 UBOOT_DIR="${UBOOT_DIR:-${BOARD_UBOOT_ASSETS_DIR:-$REPO_ROOT/assets/reference/u-boot}}"
 CONFIG_FILE="${CONFIG_FILE:-${BOARD_CONFIG_FILE_DEFAULT:-$REPO_ROOT/assets/reference/radxa/config.txt}}"
@@ -38,11 +38,17 @@ SERIAL_TTY="${SERIAL_TTY:-${BOARD_SERIAL_TTY:-ttyFIQ0}}"
 SERIAL_BAUD="${SERIAL_BAUD:-${BOARD_SERIAL_BAUD:-1500000}}"
 ROOTFS_PARTLABEL="${ROOTFS_PARTLABEL:-rootfs}"
 ROOTFS_MKFS_LABEL="${ROOTFS_MKFS_LABEL:-$ROOTFS_PARTLABEL}"
+ROOTFS_PART_SIZE="${ROOTFS_PART_SIZE:-remainder}"
+OPT_PARTLABEL="${OPT_PARTLABEL:-opt}"
+OPT_PART_SIZE="${OPT_PART_SIZE:-3G}"
+DOCKER_PARTLABEL="${DOCKER_PARTLABEL:-docker}"
+DOCKER_PART_SIZE="${DOCKER_PART_SIZE:-4G}"
 ENABLE_INITRAMFS_BOOT="${ENABLE_INITRAMFS_BOOT:-${BOARD_ENABLE_INITRAMFS_BOOT_DEFAULT:-1}}"
 INITRAMFS_NAME="${INITRAMFS_NAME:-initramfs-${BOARD}.cpio.gz}"
 SINGLE_BOOT_LABEL="${SINGLE_BOOT_LABEL:-immutable}"
 CONFIG_PART_GPT_TYPE="${CONFIG_PART_GPT_TYPE:-0FC63DAF-8483-4772-8E79-3D69D8477DE4}"
 BOOTCFG_PART_GPT_TYPE="${BOOTCFG_PART_GPT_TYPE:-C12A7328-F81F-11D2-BA4B-00A0C93EC93B}"
+LINUX_DATA_GPT_TYPE="0FC63DAF-8483-4772-8E79-3D69D8477DE4"
 BOOTABLE_GPT_PARTITIONS="${BOOTABLE_GPT_PARTITIONS:-${BOARD_BOOTABLE_GPT_PARTITIONS_DEFAULT:-2 3}}"
 SPI_IDBLOADER_LBA="${SPI_IDBLOADER_LBA:-${BOARD_SPI_IDBLOADER_LBA_DEFAULT:-64}}"
 SPI_UBOOT_ITB_LBA="${SPI_UBOOT_ITB_LBA:-${BOARD_SPI_UBOOT_ITB_LBA_DEFAULT:-16384}}"
@@ -53,7 +59,9 @@ DISKLESS_TMPFS_SIZE_MIB="${DISKLESS_TMPFS_SIZE_MIB:-}"
 # Partition geometry (512-byte sectors):
 # - p1 config: 256 MiB (starts at 16 MiB)
 # - p2 bootcfg: 300 MiB
-# - p3 rootfs: remainder
+# - p3 rootfs: remainder by default, or fixed via ROOTFS_PART_SIZE
+# - p4 opt: 3 GiB by default
+# - p5 docker: 4 GiB by default
 P1_START=32768
 P1_SIZE_SECTORS=$((256 * 1024 * 1024 / 512))
 P1_END=$((P1_START + P1_SIZE_SECTORS - 1))
@@ -102,6 +110,83 @@ directory_size_kib() {
   du -sk "$dir" 2>/dev/null | awk 'NR == 1 {print $1}'
 }
 
+parse_size_to_sectors() {
+  local raw="${1,,}"
+  local number suffix bytes
+
+  if [[ ! "$raw" =~ ^([0-9]+)([kmgtp]?)(i?b?)?$ ]]; then
+    echo "Invalid size value: $1" >&2
+    echo "Use plain bytes or a suffix such as 2048M, 2G, or 2GiB." >&2
+    exit 1
+  fi
+
+  number="${BASH_REMATCH[1]}"
+  suffix="${BASH_REMATCH[2]}"
+  bytes="$number"
+
+  case "$suffix" in
+    "") ;;
+    k) bytes=$((bytes * 1024)) ;;
+    m) bytes=$((bytes * 1024 * 1024)) ;;
+    g) bytes=$((bytes * 1024 * 1024 * 1024)) ;;
+    t) bytes=$((bytes * 1024 * 1024 * 1024 * 1024)) ;;
+    p) bytes=$((bytes * 1024 * 1024 * 1024 * 1024 * 1024)) ;;
+    *)
+      echo "Unsupported size suffix in: $1" >&2
+      exit 1
+      ;;
+  esac
+
+  printf '%s\n' $(((bytes + 511) / 512))
+}
+
+resolve_partition_layout() {
+  local mode="${ROOTFS_PART_SIZE,,}"
+  local image_bytes image_sectors image_last_partition_sector
+  local rootfs_size_sectors opt_size_sectors docker_size_sectors
+
+  image_bytes="$(stat -c%s "$IMAGE_PATH" 2>/dev/null || stat -f%z "$IMAGE_PATH")"
+  if [ -z "$image_bytes" ] || [ "$image_bytes" -le 0 ] 2>/dev/null; then
+    echo "Unable to determine image size for $IMAGE_PATH" >&2
+    exit 1
+  fi
+  if [ $((image_bytes % 512)) -ne 0 ]; then
+    echo "IMAGE_PATH size is not 512-byte aligned: $IMAGE_PATH" >&2
+    exit 1
+  fi
+
+  image_sectors=$((image_bytes / 512))
+  image_last_partition_sector=$((image_sectors - 34))
+  opt_size_sectors="$(parse_size_to_sectors "$OPT_PART_SIZE")"
+  docker_size_sectors="$(parse_size_to_sectors "$DOCKER_PART_SIZE")"
+
+  case "$mode" in
+    ""|remainder|remaining|rest)
+      P5_END="$image_last_partition_sector"
+      P5_START=$((P5_END - docker_size_sectors + 1))
+      P4_END=$((P5_START - 1))
+      P4_START=$((P4_END - opt_size_sectors + 1))
+      P3_END=$((P4_START - 1))
+      if [ "$P3_END" -lt "$P3_START" ]; then
+        echo "IMAGE_SIZE=$IMAGE_SIZE is too small for p4=$OPT_PART_SIZE and p5=$DOCKER_PART_SIZE." >&2
+        exit 1
+      fi
+      ;;
+    *)
+      rootfs_size_sectors="$(parse_size_to_sectors "$ROOTFS_PART_SIZE")"
+      P3_END=$((P3_START + rootfs_size_sectors - 1))
+      P4_START=$((P3_END + 1))
+      P4_END=$((P4_START + opt_size_sectors - 1))
+      P5_START=$((P4_END + 1))
+      P5_END=$((P5_START + docker_size_sectors - 1))
+      if [ "$P5_END" -gt "$image_last_partition_sector" ]; then
+        echo "Partition layout does not fit within IMAGE_SIZE=$IMAGE_SIZE (p3=$ROOTFS_PART_SIZE, p4=$OPT_PART_SIZE, p5=$DOCKER_PART_SIZE)." >&2
+        exit 1
+      fi
+      ;;
+  esac
+}
+
 calculate_diskless_tmpfs_size_mib() {
   local size_root="$1"
   local boot_stage_root="$2"
@@ -109,7 +194,7 @@ calculate_diskless_tmpfs_size_mib() {
   local rootfs_size_mib=0
 
   mkdir -p "$size_root"
-  tar -xf "$ROOTFS_TAR" -C "$size_root"
+  tar -xf "$ROOTFS_PAYLOAD_TAR" -C "$size_root"
 
   case "$BOOT_SCHEME" in
     rockchip-extlinux)
@@ -127,6 +212,26 @@ calculate_diskless_tmpfs_size_mib() {
 
   rootfs_size_mib=$(((rootfs_size_kib + 1024 - 1) / 1024))
   printf '%s\n' $((rootfs_size_mib + DISKLESS_TMPFS_MARGIN_MIB))
+}
+
+split_rootfs_payloads() {
+  local extract_root="$tmp_stage/rootfs-extract"
+  local opt_root="$tmp_stage/optfs"
+  local docker_root="$tmp_stage/dockerfs"
+
+  mkdir -p "$extract_root" "$opt_root" "$docker_root"
+  tar -xf "$ROOTFS_TAR" -C "$extract_root"
+
+  mkdir -p "$extract_root/opt" "$extract_root/var/lib/docker"
+  cp -a "$extract_root/opt"/. "$opt_root"/
+  cp -a "$extract_root/var/lib/docker"/. "$docker_root"/
+
+  rm -rf "$extract_root/opt" "$extract_root/var/lib/docker"
+  mkdir -p "$extract_root/opt" "$extract_root/var/lib/docker"
+
+  tar --numeric-owner --owner=0 --group=0 -C "$extract_root" -cf "$ROOTFS_PAYLOAD_TAR" .
+  tar --numeric-owner --owner=0 --group=0 -C "$opt_root" -cf "$OPTFS_TAR" .
+  tar --numeric-owner --owner=0 --group=0 -C "$docker_root" -cf "$DOCKERFS_TAR" .
 }
 
 # libguestfs/supermin requires a host kernel + modules available in the
@@ -147,9 +252,14 @@ fi
 
 mkdir -p "$(dirname "$IMAGE_PATH")"
 truncate -s "$IMAGE_SIZE" "$IMAGE_PATH"
+resolve_partition_layout
 
 tmp_stage="$(mktemp -d)"
 trap 'rm -rf "$tmp_stage"' EXIT
+ROOTFS_PAYLOAD_TAR="$tmp_stage/rootfs-main.tar"
+OPTFS_TAR="$tmp_stage/optfs.tar"
+DOCKERFS_TAR="$tmp_stage/dockerfs.tar"
+split_rootfs_payloads
 
 if [ ! -f "$CONFIG_FILE" ]; then
   CONFIG_FILE="$tmp_stage/config.txt"
@@ -168,7 +278,7 @@ if [ "$ENABLE_INITRAMFS_BOOT" = "1" ]; then
     "$initramfs_root/sys" "$initramfs_root/dev" "$initramfs_root/newroot" "$initramfs_root/ovl"
 
   rootfs_tar_list="$tmp_stage/rootfs-tar.list"
-  tar -tf "$ROOTFS_TAR" >"$rootfs_tar_list"
+  tar -tf "$ROOTFS_PAYLOAD_TAR" >"$rootfs_tar_list"
   ld_musl_entry="$(awk '/^\.\/lib\/ld-musl-.*\.so\.1$/ {print; exit}' "$rootfs_tar_list")"
   libc_musl_entry="$(awk '/^\.\/lib\/libc\.musl-.*\.so\.1$/ {print; exit}' "$rootfs_tar_list")"
 
@@ -177,7 +287,7 @@ if [ "$ENABLE_INITRAMFS_BOOT" = "1" ]; then
     exit 1
   fi
 
-  tar -xf "$ROOTFS_TAR" -C "$initramfs_root" ./bin/busybox "$ld_musl_entry" "$libc_musl_entry"
+  tar -xf "$ROOTFS_PAYLOAD_TAR" -C "$initramfs_root" ./bin/busybox "$ld_musl_entry" "$libc_musl_entry"
   ln -snf busybox "$initramfs_root/bin/sh"
   # Add common applet entrypoints so emergency shell is usable.
   for applet in \
@@ -545,27 +655,41 @@ run
 part-init /dev/sda gpt
 part-add /dev/sda p $P1_START $P1_END
 part-add /dev/sda p $P2_START $P2_END
-part-add /dev/sda p $P3_START -34
+part-add /dev/sda p $P3_START $P3_END
+part-add /dev/sda p $P4_START $P4_END
+part-add /dev/sda p $P5_START $P5_END
 part-set-name /dev/sda 1 config
 part-set-name /dev/sda 2 efi
 part-set-name /dev/sda 3 $ROOTFS_PARTLABEL
+part-set-name /dev/sda 4 $OPT_PARTLABEL
+part-set-name /dev/sda 5 $DOCKER_PARTLABEL
 part-set-gpt-type /dev/sda 1 $CONFIG_PART_GPT_TYPE
 part-set-gpt-type /dev/sda 2 $BOOTCFG_PART_GPT_TYPE
-part-set-gpt-type /dev/sda 3 0FC63DAF-8483-4772-8E79-3D69D8477DE4
+part-set-gpt-type /dev/sda 3 $LINUX_DATA_GPT_TYPE
+part-set-gpt-type /dev/sda 4 $LINUX_DATA_GPT_TYPE
+part-set-gpt-type /dev/sda 5 $LINUX_DATA_GPT_TYPE
 mkfs vfat /dev/sda1 label:config
 mkfs vfat /dev/sda2 label:efi
 mkfs ext4 /dev/sda3 label:$ROOTFS_MKFS_LABEL
+mkfs ext4 /dev/sda4 label:$OPT_PARTLABEL
+mkfs ext4 /dev/sda5 label:$DOCKER_PARTLABEL
 mount /dev/sda3 /
 mkdir-p /boot
 mkdir-p /boot/efi
 mkdir-p /config
 mount /dev/sda2 /boot/efi
 mount /dev/sda1 /config
-tar-in $ROOTFS_TAR /
+tar-in $ROOTFS_PAYLOAD_TAR /
 tar-in $BOOT_TAR /
 tar-in $MODULES_TAR /
 upload $CONFIG_FILE /config/config.txt
 mkdir-p /config/cache
+mkdir-p /opt
+mkdir-p /var/lib/docker
+mount /dev/sda4 /opt
+mount /dev/sda5 /var/lib/docker
+tar-in $OPTFS_TAR /opt
+tar-in $DOCKERFS_TAR /var/lib/docker
 mkdir-p /boot/efi/extlinux
 mkdir-p /boot/efi/boot/dtbs/${BOARD_DTB_SUBDIR}
 upload $tmp_stage/boot/extlinux/extlinux.conf /boot/efi/extlinux/extlinux.conf
@@ -589,26 +713,40 @@ run
 part-init /dev/sda gpt
 part-add /dev/sda p $P1_START $P1_END
 part-add /dev/sda p $P2_START $P2_END
-part-add /dev/sda p $P3_START -34
+part-add /dev/sda p $P3_START $P3_END
+part-add /dev/sda p $P4_START $P4_END
+part-add /dev/sda p $P5_START $P5_END
 part-set-name /dev/sda 1 config
 part-set-name /dev/sda 2 efi
 part-set-name /dev/sda 3 $ROOTFS_PARTLABEL
+part-set-name /dev/sda 4 $OPT_PARTLABEL
+part-set-name /dev/sda 5 $DOCKER_PARTLABEL
 part-set-gpt-type /dev/sda 1 $BOOTCFG_PART_GPT_TYPE
 part-set-gpt-type /dev/sda 2 $CONFIG_PART_GPT_TYPE
-part-set-gpt-type /dev/sda 3 0FC63DAF-8483-4772-8E79-3D69D8477DE4
+part-set-gpt-type /dev/sda 3 $LINUX_DATA_GPT_TYPE
+part-set-gpt-type /dev/sda 4 $LINUX_DATA_GPT_TYPE
+part-set-gpt-type /dev/sda 5 $LINUX_DATA_GPT_TYPE
 mkfs vfat /dev/sda1 label:config
 mkfs vfat /dev/sda2 label:efi
 mkfs ext4 /dev/sda3 label:$ROOTFS_MKFS_LABEL
+mkfs ext4 /dev/sda4 label:$OPT_PARTLABEL
+mkfs ext4 /dev/sda5 label:$DOCKER_PARTLABEL
 mount /dev/sda3 /
 mkdir-p /boot
 mkdir-p /boot/efi
 mkdir-p /config
 mount /dev/sda2 /boot/efi
 mount /dev/sda1 /config
-tar-in $ROOTFS_TAR /
+tar-in $ROOTFS_PAYLOAD_TAR /
 tar-in $MODULES_TAR /
 tar-in $RPI_BOOT_TAR /config
 mkdir-p /config/cache
+mkdir-p /opt
+mkdir-p /var/lib/docker
+mount /dev/sda4 /opt
+mount /dev/sda5 /var/lib/docker
+tar-in $OPTFS_TAR /opt
+tar-in $DOCKERFS_TAR /var/lib/docker
 EOF
     ;;
 esac

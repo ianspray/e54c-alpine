@@ -14,6 +14,8 @@ The current runtime layout is:
 1. `p1` (`config`) for persistent config/cache.
 2. `p2` (`efi`) for extlinux + kernel + DTB.
 3. `p3` (`rootfs`) for Alpine root filesystem.
+4. `p4` (`opt`) for read-only `/opt`.
+5. `p5` (`docker`) for read-only `/var/lib/docker`.
 
 Current runtime mode:
 
@@ -27,6 +29,14 @@ Current default partition sizing:
 1. `p1` `config`: 256 MiB
 2. `p2` `efi`: 300 MiB
 3. `p3` `rootfs`: remainder
+4. `p4` `opt`: 3 GiB
+5. `p5` `docker`: 4 GiB
+
+You can override `p3` to a fixed size during assembly, for example:
+
+```bash
+ROOTFS_PART_SIZE=2G scripts/assemble-image.sh
+```
 
 ## 1) Updating Alpine Userland to a New Version
 

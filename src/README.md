@@ -211,10 +211,12 @@ scripts/build-usb-updater-image.sh
   - `spi-u-boot-16MiB.img`
   - built by default from the latest Radxa SPI base image with patched `u-boot.itb` injected
   - ready to write from byte `0` of SPI (to `/dev/mtd0` with `flashcp`)
-- Partition layout matches Radxa reference image:
+- Partition layout:
   - `p1` `config` FAT32 at `16 MiB` offset, size `256 MiB`
   - `p2` `efi` FAT32, size `300 MiB`
-  - `p3` `rootfs` ext4 uses remainder
+  - `p3` `rootfs` ext4 uses remainder by default, or a fixed size via `ROOTFS_PART_SIZE`
+  - `p4` `opt` ext4, size `3 GiB`
+  - `p5` `docker` ext4, size `4 GiB`
 - Updater image details:
   - Includes compressed payload derived from `build/<board>-alpian-custom.img`
   - Boots a true diskless updater profile from removable media (`diskless=yes` via initramfs)
@@ -237,6 +239,7 @@ scripts/build-usb-updater-image.sh
   - Boot-time console/login banner prints currently assigned global IP addresses
   - `lbu` configured with `LBU_MEDIA=config`
   - `config` and `efi` partitions are mounted read-only in normal operation
+  - `opt` and `docker` partitions are mounted read-only at `/opt` and `/var/lib/docker`
   - `/etc/apk/cache` points to `/media/config/cache`; remount `config` read-write for maintenance/package operations
   - Root `authorized_keys` is auto-populated from `assets/reference/alpine/root_authorized_keys` when present
 - Temporary root password enabled for serial bring-up: `alpine`
@@ -289,6 +292,10 @@ scripts/build-usb-updater-image.sh
   - `MOTD_TEMPLATE_FILE=assets/reference/alpine/motd-updater scripts/prepare-alpian-rootfs.sh`
 - Override default DTB used by extlinux and `/boot/efi/boot/dtbs/rockchip`:
   - `BOARD_DTB_NAME=rk3588s-radxa-e54c.dtb scripts/assemble-image.sh`
+- Fix `p3` (`rootfs`) to 2 GiB and leave the remaining image space unallocated:
+  - `ROOTFS_PART_SIZE=2G scripts/assemble-image.sh`
+- Override the default image size (default is now `12G`):
+  - `IMAGE_SIZE=16G scripts/assemble-image.sh`
 - Override diskless cmdline:
   - `KERNEL_CMDLINE_IMMUTABLE='root=PARTLABEL=rootfs rootfstype=ext4 rootwait console=ttyFIQ0,1500000n8 earlycon nvme_core.default_ps_max_latency_us=0 pcie_aspm=off ro diskless=yes' scripts/assemble-image.sh`
 - Disable initramfs boot path (falls back to direct kernel root mount):

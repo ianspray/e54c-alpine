@@ -173,6 +173,9 @@ copy_apk_keys() {
 copy_apk_keys "$CUSTOM_APK_KEYS_DIR"
 copy_apk_keys "$LOCAL_CUSTOM_APK_KEYS_DIR"
 
+# Keep future mountpoints writable while apk populates the build rootfs.
+mkdir -p "$ROOTFS_DIR/opt" "$ROOTFS_DIR/var/lib/docker"
+
 # Install additional Alpine packages from the host using apk.static.
 HOST_APKINDEX="${DOWNLOAD_DIR}/APKINDEX-${ALPINE_BRANCH}-${HOST_ARCH}.tar.gz"
 if [ ! -f "$HOST_APKINDEX" ]; then
@@ -341,10 +344,12 @@ cat >"$ROOTFS_DIR/etc/fstab" <<'EOF'
 # lbu temporarily remounts config as writable during commit/revert.
 LABEL=config /media/config vfat ro,noatime 0 2
 LABEL=efi /boot/efi vfat ro,noatime 0 2
+LABEL=opt /opt ext4 ro,noatime 0 2
+LABEL=docker /var/lib/docker ext4 ro,noatime 0 2
 LABEL=rootfs / ext4 defaults 0 1
 EOF
 
-mkdir -p "$ROOTFS_DIR/media/config" "$ROOTFS_DIR/etc/apk"
+mkdir -p "$ROOTFS_DIR/media/config" "$ROOTFS_DIR/etc/apk" "$ROOTFS_DIR/opt" "$ROOTFS_DIR/var/lib/docker"
 ln -snf /media/config/cache "$ROOTFS_DIR/etc/apk/cache"
 
 if [ -f "$ROOTFS_DIR/etc/lbu/lbu.conf" ]; then
