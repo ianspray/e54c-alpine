@@ -527,19 +527,29 @@ if [ -n "\$apkovl_spec" ]; then
       partlabel="\${apkovl_spec#PARTLABEL=}"
       apkovl_path="\${partlabel#*:}"
       partname="\${partlabel%%:*}"
-      for uevent in /sys/class/block/*/uevent; do
-        [ -f "\$uevent" ] || continue
-        partname_check=""
-        while IFS= read -r line; do
-          case "\$line" in
-            PARTNAME=*) partname_check="\${line#PARTNAME=}" ;;
-          esac
-        done <"\$uevent"
-        if [ "\$partname_check" = "\$partname" ]; then
-          devnode="/dev/\${uevent#/sys/class/block/}"
-          devnode="\${devnode%/uevent}"
-          apkovl_dev="\$devnode"
-          break
+      log "Looking for partition: partname=\$partname path=\$apkovl_path"
+      waited=0
+      while [ -z "\$apkovl_dev" ] && [ "\$waited" -lt 30 ]; do
+        for uevent in /sys/class/block/*/uevent; do
+          [ -f "\$uevent" ] || continue
+          partname_check=""
+          while IFS= read -r line; do
+            case "\$line" in
+              PARTNAME=*) partname_check="\${line#PARTNAME=}" ;;
+            esac
+          done <"\$uevent"
+          log "Checking \$uevent: PARTNAME=\$partname_check"
+          if [ "\$partname_check" = "\$partname" ]; then
+            devnode="/dev/\${uevent#/sys/class/block/}"
+            devnode="\${devnode%/uevent}"
+            apkovl_dev="\$devnode"
+            log "Found device: \$apkovl_dev"
+            break
+          fi
+        done
+        if [ -z "\$apkovl_dev" ]; then
+          \$BB sleep 1
+          waited=\$((waited + 1))
         fi
       done
       ;;
@@ -550,12 +560,15 @@ if [ -n "\$apkovl_spec" ]; then
 
   if [ -n "\$apkovl_dev" ] && [ -b "\$apkovl_dev" ]; then
     \$BB mkdir -p /media/apkovl_src
+    log "Mounting config partition..."
     if \$BB mount -o ro "\$apkovl_dev" /media/apkovl_src 2>/dev/null; then
+      log "Config partition mounted, checking for \$apkovl_path"
       if [ -f "/media/apkovl_src/\$apkovl_path" ]; then
-        log "Extracting apkovl to /newroot"
+        log "Found apkovl, extracting to /newroot"
         \$BB tar -xzf "/media/apkovl_src/\$apkovl_path" -C /newroot 2>/dev/null || log "Failed to extract apkovl"
       else
         log "Apkovl not found: /media/apkovl_src/\$apkovl_path"
+        \$BB ls -la /media/apkovl_src/ 2>/dev/null || true
       fi
       \$BB umount /media/apkovl_src
     else
