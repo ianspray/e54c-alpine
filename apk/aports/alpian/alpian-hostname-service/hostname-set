@@ -82,11 +82,20 @@ hostname "$NEW_HOSTNAME"
 echo "Persisting change with lbu package..."
 if command -v lbu >/dev/null 2>&1; then
 	ALPIAN_APKOVL="${ALPIAN_APKOVL:-/media/config/alpian.apkovl.tar.gz}"
+	APKOVL_DIR="$(dirname "$ALPIAN_APKOVL")"
+
+	mount -o remount,rw "$APKOVL_DIR" 2>/dev/null || mount -o remount,rw /media/config 2>/dev/null || mount -o remount,rw /dev/disk/by-label/config 2>/dev/null || {
+		echo "Warning: Could not remount config partition as writable" >&2
+		echo "Warning: changes may not persist after reboot" >&2
+	}
+
 	if lbu package "$ALPIAN_APKOVL"; then
 		echo "Apkovl saved to $ALPIAN_APKOVL"
 	else
 		echo "Warning: lbu package failed, changes may not persist after reboot" >&2
 	fi
+
+	mount -o remount,ro /media/config 2>/dev/null || mount -o remount,ro /dev/disk/by-label/config 2>/dev/null || true
 else
 	echo "Warning: lbu not found, changes will not persist after reboot" >&2
 fi
