@@ -528,31 +528,25 @@ if [ -n "\$apkovl_spec" ]; then
       apkovl_path="\${partlabel#*:}"
       partname="\${partlabel%%:*}"
       log "Looking for partition: partname=\$partname path=\$apkovl_path"
-      log "Available block devices:"
-      for dev in /dev/nvme* /dev/mmcblk* /dev/sd* /dev/vd*; do
-        [ -e "\$dev" ] && log "  \$dev exists"
-      done
+      log "Waiting for NVMe devices..."
       waited=0
-      while [ -z "\$apkovl_dev" ] && [ "\$waited" -lt 30 ]; do
-        for block_path in /sys/class/block/*; do
-          dev_name="\${block_path#/sys/class/block/}"
-          [ -f "\$block_path/uevent" ] || continue
-          partname_check=""
-          while IFS= read -r line; do
-            case "\$line" in
-              PARTNAME=*) partname_check="\${line#PARTNAME=}" ;;
-            esac
-          done <"\$block_path/uevent"
-          if [ "\$partname_check" = "\$partname" ]; then
-            apkovl_dev="/dev/\$dev_name"
-            log "Found \$partname at \$apkovl_dev"
-            break
-          fi
+      while [ "\$waited" -lt 60 ]; do
+        for nvme_dev in /dev/nvme*; do
+          [ -e "\$nvme_dev" ] || continue
+          log "Found NVMe device: \$nvme_dev"
+          for part in "\$nvme_dev"*; do
+            [ -e "\$part" ] || continue
+            [ "\$part" = "\$nvme_dev" ] && continue
+            label="\$(\$BB blkid -o value -s LABEL "\$part" 2>/dev/null || true)"
+            if [ "\$label" = "\$partname" ]; then
+              apkovl_dev="\$part"
+              log "Found \$partname at \$apkovl_dev"
+              break 2
+            fi
+          done
         done
-        if [ -z "\$apkovl_dev" ]; then
-          \$BB sleep 1
-          waited=\$((waited + 1))
-        fi
+        \$BB sleep 2
+        waited=\$((waited + 2))
       done
       ;;
     *)
