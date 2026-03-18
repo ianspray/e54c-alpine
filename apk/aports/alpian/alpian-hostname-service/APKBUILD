@@ -7,7 +7,7 @@ pkgdesc="Alpian hostname management with lbu persistence and avahi integration"
 url="https://example.invalid/alpian"
 arch="noarch"
 license="MIT"
-depends="avahi-daemon openrc"
+depends="avahi openrc"
 source="
 	hostname-set
 "
