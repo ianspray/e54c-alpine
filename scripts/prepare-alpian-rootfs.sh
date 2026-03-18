@@ -381,6 +381,9 @@ mkdir -p "$ROOTFS_DIR/etc/avahi/services"
 if [ -f "$ROOTFS_DIR/etc/avahi/avahi-daemon.conf" ]; then
   sed -i 's/.*enable-dbus=.*/enable-dbus=no/' "$ROOTFS_DIR/etc/avahi/avahi-daemon.conf"
 fi
+if [ -f "$ROOTFS_DIR/etc/init.d/avahi-daemon" ]; then
+  sed -i 's/need dbus hostname/need hostname/' "$ROOTFS_DIR/etc/init.d/avahi-daemon"
+fi
 cat >"$ROOTFS_DIR/etc/avahi/services/ssh.service" <<'EOF'
 <?xml version="1.0" standalone='no'?>
 <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
