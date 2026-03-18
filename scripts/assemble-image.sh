@@ -347,6 +347,7 @@ diskless_tmpfs_size_mib=""
 root_wait_forever=0
 root_wait_timeout=30
 root_delay=0
+apkovl_spec=""
 
 \$BB mount -t proc proc /proc || panic "Failed to mount /proc"
 CMDLINE="\$("\$BB" cat /proc/cmdline 2>/dev/null || true)"
@@ -361,6 +362,7 @@ for arg in \$CMDLINE; do
     rootwait) : ;;
     rootwait=*) root_wait_timeout="\${arg#rootwait=}" ;;
     rootdelay=*) root_delay="\${arg#rootdelay=}" ;;
+    apkovl=*) apkovl_spec="\${arg#apkovl=}" ;;
   esac
 done
 
@@ -515,6 +517,55 @@ fi
 \$BB mount --move /proc /newroot/proc
 \$BB mount --move /sys /newroot/sys
 \$BB mount --move /dev /newroot/dev
+
+if [ -n "\$apkovl_spec" ]; then
+  log "Loading apkovl: \$apkovl_spec"
+  apkovl_dev=""
+  apkovl_path=""
+  case "\$apkovl_spec" in
+    PARTLABEL=*)
+      partlabel="\${apkovl_spec#PARTLABEL=}"
+      apkovl_path="\${partlabel#*:}"
+      partname="\${partlabel%%:*}"
+      for uevent in /sys/class/block/*/uevent; do
+        [ -f "\$uevent" ] || continue
+        partname_check=""
+        while IFS= read -r line; do
+          case "\$line" in
+            PARTNAME=*) partname_check="\${line#PARTNAME=}" ;;
+          esac
+        done <"\$uevent"
+        if [ "\$partname_check" = "\$partname" ]; then
+          devnode="/dev/\${uevent#/sys/class/block/}"
+          devnode="\${devnode%/uevent}"
+          apkovl_dev="\$devnode"
+          break
+        fi
+      done
+      ;;
+    *)
+      log "Unsupported apkovl spec format: \$apkovl_spec"
+      ;;
+  esac
+
+  if [ -n "\$apkovl_dev" ] && [ -b "\$apkovl_dev" ]; then
+    \$BB mkdir -p /media/apkovl_src
+    if \$BB mount -o ro "\$apkovl_dev" /media/apkovl_src 2>/dev/null; then
+      if [ -f "/media/apkovl_src/\$apkovl_path" ]; then
+        log "Extracting apkovl to /newroot"
+        \$BB tar -xzf "/media/apkovl_src/\$apkovl_path" -C /newroot 2>/dev/null || log "Failed to extract apkovl"
+      else
+        log "Apkovl not found: /media/apkovl_src/\$apkovl_path"
+      fi
+      \$BB umount /media/apkovl_src
+    else
+      log "Failed to mount config partition for apkovl"
+    fi
+    \$BB rmdir /media/apkovl_src 2>/dev/null || true
+  else
+    log "Could not resolve apkovl device: \$apkovl_spec"
+  fi
+fi
 
 log "switch_root to /sbin/init"
 exec \$BB switch_root /newroot /sbin/init
