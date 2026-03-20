@@ -7,7 +7,30 @@ set -e
 
 APKOVL_PATH="${APKOVL_PATH:-/media/config/alpian.apkovl.tar.gz}"
 APKOVL_TMP="${APKOVL_TMP:-/tmp/apkovl-extract}"
-CONFIG_PART="${CONFIG_PART:-/dev/disk/by-label/config}"
+CONFIG_LABEL="config"
+CONFIG_PART_DEV=""
+
+log() {
+	echo "[apkovl-restore] $*"
+}
+
+find_config_part() {
+	if [ -f "$APKOVL_PATH" ]; then
+		return 0
+	fi
+
+	log "Waiting for config partition..."
+	waited=0
+	while [ ! -f "$APKOVL_PATH" ] && [ "$waited" -lt 60 ]; do
+		sleep 1
+		waited=$((waited + 1))
+	done
+
+	if [ ! -f "$APKOVL_PATH" ]; then
+		log "Config partition not found, skipping apkovl restore"
+		return 1
+	fi
+}
 
 restore_file() {
 	local src="$1"
@@ -20,31 +43,8 @@ restore_file() {
 	cp -a "$src" "$dst"
 }
 
-log() {
-	echo "[apkovl-restore] $*"
-}
-
 log "Starting apkovl restore"
-
-# Wait for config partition to be available
-if [ ! -e "$CONFIG_PART" ]; then
-	log "Waiting for config partition..."
-	waited=0
-	while [ ! -e "$CONFIG_PART" ] && [ "$waited" -lt 60 ]; do
-		sleep 1
-		waited=$((waited + 1))
-	done
-fi
-
-if [ ! -e "$CONFIG_PART" ]; then
-	log "Config partition not found, skipping apkovl restore"
-	exit 0
-fi
-
-if [ ! -f "$APKOVL_PATH" ]; then
-	log "No apkovl found at $APKOVL_PATH"
-	exit 0
-fi
+find_config_part
 
 # Extract apkovl to temp location
 rm -rf "$APKOVL_TMP"
