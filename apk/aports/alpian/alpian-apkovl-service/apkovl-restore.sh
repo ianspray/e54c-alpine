@@ -21,7 +21,7 @@ find_config_part() {
 
 	log "Waiting for config partition..."
 	waited=0
-	while [ ! -f "$APKOVL_PATH" ] && [ "$waited" -lt 10 ]; do
+	while [ ! -f "$APKOVL_PATH" ] && [ "$waited" -lt 5 ]; do
 		sleep 1
 		waited=$((waited + 1))
 	done
