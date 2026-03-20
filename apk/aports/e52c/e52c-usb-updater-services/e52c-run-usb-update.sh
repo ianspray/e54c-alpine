@@ -222,7 +222,19 @@ if [ -z "$root_dev" ] || [ ! -b "$root_dev" ]; then
   exit 1
 fi
 
+base_dev="${root_dev%p[0-9]*}"
+if [ -n "$base_dev" ] && [ -b "$base_dev" ]; then
+  if command -v blockdev >/dev/null 2>&1; then
+    blockdev --rereadpt "$base_dev" 2>/dev/null || true
+  fi
+fi
+
 efi_dev="$(derive_bootcfg_device_from_root "$root_dev" || true)"
+
+if [ -z "$efi_dev" ]; then
+  log "Updater bootcfg partition could not be determined; using p2 of root device."
+  efi_dev="${base_dev}p2"
+fi
 
 if [ ! -b "$efi_dev" ]; then
   log "Updater bootcfg partition not found: $efi_dev"
