@@ -484,6 +484,7 @@ done
 for svc in modules sysctl hostname bootmisc swclock localmount; do
   enable_service "$svc" boot
 done
+enable_service apkovl-restore boot
 for svc in networking sshd avahi-daemon; do
   enable_service "$svc" default
 done

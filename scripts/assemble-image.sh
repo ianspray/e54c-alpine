@@ -350,14 +350,7 @@ root_delay=0
 apkovl_spec=""
 
 \$BB mount -t proc proc /proc || panic "Failed to mount /proc"
-\$BB mount -t sysfs sysfs /sys || panic "Failed to mount /sys"
 CMDLINE="\$("\$BB" cat /proc/cmdline 2>/dev/null || true)"
-
-log "Loading NVMe driver and rescanning PCIe..."
-\$BB modprobe nvme 2>/dev/null || true
-if [ -d /sys/bus/pci/rescan ]; then
-  \$BB sh -c 'echo 1 > /sys/bus/pci/rescan' 2>/dev/null || true
-fi
 
 for arg in \$CMDLINE; do
   case "\$arg" in
@@ -535,45 +528,17 @@ if [ -n "\$apkovl_spec" ]; then
       apkovl_path="\${partlabel#*:}"
       partname="\${partlabel%%:*}"
       log "Looking for partition: partname=\$partname path=\$apkovl_path"
-      log "Waiting for block devices..."
-      waited=0
-      while [ -z "\$apkovl_dev" ] && [ "\$waited" -lt 60 ]; do
-        if [ -d /dev/disk/by-label ]; then
-          for link in /dev/disk/by-label/*; do
-            [ -e "\$link" ] || continue
-            target="\$(\$BB readlink -f "\$link" 2>/dev/null || true)"
-            label="\$(\$BB basename "\$link")"
-            if [ "\$label" = "\$partname" ] && [ -n "\$target" ]; then
-              apkovl_dev="\$target"
-              log "Found \$partname at \$apkovl_dev via /dev/disk/by-label"
-              break
-            fi
-          done
-        fi
-        if [ -z "\$apkovl_dev" ]; then
-          for nvme_dev in /dev/nvme*; do
-            [ -e "\$nvme_dev" ] || continue
-            for part in "\$nvme_dev"*; do
-              [ -e "\$part" ] || continue
-              [ "\$part" = "\$nvme_dev" ] && continue
-              if \$BB grep -q "\$part" /proc/mounts 2>/dev/null; then
-                continue
-              fi
-              if \$BB mount -o ro "\$part" /mnt 2>/dev/null; then
-                check_label="\$(\$BB cat /mnt/.disk/info 2>/dev/null || \$BB blkid -s LABEL -o value "\$part" 2>/dev/null || true)"
-                \$BB umount /mnt 2>/dev/null
-                if [ "\$check_label" = "\$partname" ]; then
-                  apkovl_dev="\$part"
-                  log "Found \$partname at \$apkovl_dev"
-                  break 2
-                fi
-              fi
-            done
-          done
-        fi
-        \$BB sleep 2
-        waited=\$((waited + 2))
-      done
+      if [ -d /dev/disk/by-label ]; then
+        for link in /dev/disk/by-label/*; do
+          [ -e "\$link" ] || continue
+          label="\$(\$BB basename "\$link")"
+          if [ "\$label" = "\$partname" ]; then
+            apkovl_dev="\$(\$BB readlink -f "\$link" 2>/dev/null || true)"
+            log "Found \$partname at \$apkovl_dev via /dev/disk/by-label"
+            break
+          fi
+        done
+      fi
       ;;
     *)
       log "Unsupported apkovl spec format: \$apkovl_spec"
@@ -590,7 +555,6 @@ if [ -n "\$apkovl_spec" ]; then
         \$BB tar -xzf "/media/apkovl_src/\$apkovl_path" -C /newroot 2>/dev/null || log "Failed to extract apkovl"
       else
         log "Apkovl not found: /media/apkovl_src/\$apkovl_path"
-        \$BB ls -la /media/apkovl_src/ 2>/dev/null || true
       fi
       \$BB umount /media/apkovl_src
     else
@@ -598,7 +562,7 @@ if [ -n "\$apkovl_spec" ]; then
     fi
     \$BB rmdir /media/apkovl_src 2>/dev/null || true
   else
-    log "Could not resolve apkovl device: \$apkovl_spec"
+    log "Could not resolve apkovl device (boot service will retry): \$apkovl_spec"
   fi
 fi
 

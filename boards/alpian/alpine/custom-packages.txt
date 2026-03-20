@@ -3,3 +3,4 @@
 #
 partition-mount-service
 alpian-hostname-service
+alpian-apkovl-service

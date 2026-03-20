@@ -1,0 +1,19 @@
+#!/sbin/openrc-run
+# SPDX-License-Identifier: MIT
+
+name="apkovl-restore"
+description="Restore configuration from apkovl"
+command="/usr/sbin/apkovl-restore"
+command_background="no"
+
+depend() {
+	need localmount
+	before hostname networking sshd
+	after partition-mount
+}
+
+start() {
+	ebegin "Restoring configuration from apkovl"
+	"$command"
+	eend $?
+}
