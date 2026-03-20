@@ -269,7 +269,6 @@ fi
 
 mkdir -p "$(dirname "$IMAGE_PATH")"
 truncate -s "$IMAGE_SIZE" "$IMAGE_PATH"
-resolve_partition_layout
 
 tmp_stage="$(mktemp -d)"
 trap 'rm -rf "$tmp_stage"' EXIT
@@ -713,6 +712,8 @@ EOF
     exit 1
     ;;
 esac
+
+resolve_partition_layout
 
 case "$BOOT_SCHEME" in
   rockchip-extlinux)
