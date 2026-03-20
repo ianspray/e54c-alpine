@@ -65,8 +65,6 @@ if [ -f "$APKOVL_TMP/etc/hostname" ]; then
 		log "Updating hostname: $CURRENT_HOSTNAME -> $NEW_HOSTNAME"
 		echo "$NEW_HOSTNAME" >/etc/hostname
 		hostname "$NEW_HOSTNAME"
-		rc-service hostname restart 2>/dev/null || true
-		rc-service avahi-daemon restart 2>/dev/null || true
 	else
 		log "Hostname unchanged: $CURRENT_HOSTNAME"
 	fi
