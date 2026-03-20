@@ -350,7 +350,14 @@ root_delay=0
 apkovl_spec=""
 
 \$BB mount -t proc proc /proc || panic "Failed to mount /proc"
+\$BB mount -t sysfs sysfs /sys || panic "Failed to mount /sys"
 CMDLINE="\$("\$BB" cat /proc/cmdline 2>/dev/null || true)"
+
+log "Loading NVMe driver and rescanning PCIe..."
+\$BB modprobe nvme 2>/dev/null || true
+if [ -d /sys/bus/pci/rescan ]; then
+  \$BB sh -c 'echo 1 > /sys/bus/pci/rescan' 2>/dev/null || true
+fi
 
 for arg in \$CMDLINE; do
   case "\$arg" in
