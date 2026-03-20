@@ -243,7 +243,7 @@ scripts/build-usb-updater-image.sh
   - `opt` and `docker` partitions are mounted read-only at `/opt` and `/var/lib/docker`
   - `/etc/apk/cache` points to `/media/config/cache`; remount `config` read-write for maintenance/package operations
   - Root `authorized_keys` is auto-populated from `assets/reference/alpine/root_authorized_keys` when present
-- Temporary root password enabled for serial bring-up: `alpine`
+- Temporary root password enabled for serial bring-up: `alpian`
   - Custom OpenRC behavior is shipped as APKs:
     - `e54c-openrc-services` (main image boot/runtime helpers)
     - `e54c-usb-updater-services` (USB updater flash flow)
