@@ -21,14 +21,14 @@ find_config_part() {
 
 	log "Waiting for config partition..."
 	waited=0
-	while [ ! -f "$APKOVL_PATH" ] && [ "$waited" -lt 60 ]; do
+	while [ ! -f "$APKOVL_PATH" ] && [ "$waited" -lt 10 ]; do
 		sleep 1
 		waited=$((waited + 1))
 	done
 
 	if [ ! -f "$APKOVL_PATH" ]; then
 		log "Config partition not found, skipping apkovl restore"
-		return 1
+		return 0
 	fi
 }
 
