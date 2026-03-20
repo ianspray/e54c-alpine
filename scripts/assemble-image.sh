@@ -164,12 +164,20 @@ resolve_partition_layout() {
   case "$mode" in
     ""|remainder|remaining|rest)
       P5_END="$image_last_partition_sector"
-      P5_START=$((P5_END - docker_size_sectors + 1))
+      if [ "$docker_size_sectors" -gt 0 ]; then
+        P5_START=$((P5_END - docker_size_sectors + 1))
+      else
+        P5_START=$((P5_END + 1))
+      fi
       P4_END=$((P5_START - 1))
-      P4_START=$((P4_END - opt_size_sectors + 1))
+      if [ "$opt_size_sectors" -gt 0 ]; then
+        P4_START=$((P4_END - opt_size_sectors + 1))
+      else
+        P4_START=$((P4_END + 1))
+      fi
       P3_END=$((P4_START - 1))
       if [ "$P3_END" -lt "$P3_START" ]; then
-        echo "IMAGE_SIZE=$IMAGE_SIZE is too small for p4=$OPT_PART_SIZE and p5=$DOCKER_PART_SIZE." >&2
+        echo "IMAGE_SIZE=$IMAGE_SIZE is too small for p3 rootfs." >&2
         exit 1
       fi
       ;;
@@ -177,11 +185,19 @@ resolve_partition_layout() {
       rootfs_size_sectors="$(parse_size_to_sectors "$ROOTFS_PART_SIZE")"
       P3_END=$((P3_START + rootfs_size_sectors - 1))
       P4_START=$((P3_END + 1))
-      P4_END=$((P4_START + opt_size_sectors - 1))
+      if [ "$opt_size_sectors" -gt 0 ]; then
+        P4_END=$((P4_START + opt_size_sectors - 1))
+      else
+        P4_END=$((P4_START - 1))
+      fi
       P5_START=$((P4_END + 1))
-      P5_END=$((P5_START + docker_size_sectors - 1))
+      if [ "$docker_size_sectors" -gt 0 ]; then
+        P5_END=$((P5_START + docker_size_sectors - 1))
+      else
+        P5_END=$((P5_START - 1))
+      fi
       if [ "$P5_END" -gt "$image_last_partition_sector" ]; then
-        echo "Partition layout does not fit within IMAGE_SIZE=$IMAGE_SIZE (p3=$ROOTFS_PART_SIZE, p4=$OPT_PART_SIZE, p5=$DOCKER_PART_SIZE)." >&2
+        echo "Partition layout does not fit within IMAGE_SIZE=$IMAGE_SIZE." >&2
         exit 1
       fi
       ;;
@@ -707,18 +723,26 @@ part-init /dev/sda gpt
 part-add /dev/sda p $P1_START $P1_END
 part-add /dev/sda p $P2_START $P2_END
 part-add /dev/sda p $P3_START $P3_END
-part-add /dev/sda p $P4_START $P4_END
-part-add /dev/sda p $P5_START $P5_END
+if [ "$opt_size_sectors" -gt 0 ]; then
+  part-add /dev/sda p $P4_START $P4_END
+fi
+if [ "$docker_size_sectors" -gt 0 ]; then
+  part-add /dev/sda p $P5_START $P5_END
+fi
 part-set-name /dev/sda 1 config
 part-set-name /dev/sda 2 efi
 part-set-name /dev/sda 3 $ROOTFS_PARTLABEL
-part-set-name /dev/sda 4 $OPT_PARTLABEL
-part-set-name /dev/sda 5 $DOCKER_PARTLABEL
+if [ "$opt_size_sectors" -gt 0 ]; then
+  part-set-name /dev/sda 4 $OPT_PARTLABEL
+  part-set-gpt-type /dev/sda 4 $LINUX_DATA_GPT_TYPE
+fi
+if [ "$docker_size_sectors" -gt 0 ]; then
+  part-set-name /dev/sda 5 $DOCKER_PARTLABEL
+  part-set-gpt-type /dev/sda 5 $LINUX_DATA_GPT_TYPE
+fi
 part-set-gpt-type /dev/sda 1 $CONFIG_PART_GPT_TYPE
 part-set-gpt-type /dev/sda 2 $BOOTCFG_PART_GPT_TYPE
 part-set-gpt-type /dev/sda 3 $LINUX_DATA_GPT_TYPE
-part-set-gpt-type /dev/sda 4 $LINUX_DATA_GPT_TYPE
-part-set-gpt-type /dev/sda 5 $LINUX_DATA_GPT_TYPE
 mkfs vfat /dev/sda1 label:config
 mkfs vfat /dev/sda2 label:efi
 mkfs ext4 /dev/sda3 label:$ROOTFS_MKFS_LABEL
@@ -758,6 +782,32 @@ EOF
     fi
     ;;
   rpi-firmware)
+    opt_part_cmd=""
+    docker_part_cmd=""
+    opt_mount_cmd=""
+    docker_mount_cmd=""
+    if [ "$opt_size_sectors" -gt 0 ]; then
+      opt_part_cmd="part-add /dev/sda p $P4_START $P4_END
+part-set-name /dev/sda 4 $OPT_PARTLABEL
+part-set-gpt-type /dev/sda 4 $LINUX_DATA_GPT_TYPE
+mkfs ext4 /dev/sda4 label:$OPT_PARTLABEL
+"
+      opt_mount_cmd="mkdir-p /opt
+mount /dev/sda4 /opt
+tar-in $OPTFS_TAR /opt
+"
+    fi
+    if [ "$docker_size_sectors" -gt 0 ]; then
+      docker_part_cmd="part-add /dev/sda p $P5_START $P5_END
+part-set-name /dev/sda 5 $DOCKER_PARTLABEL
+part-set-gpt-type /dev/sda 5 $LINUX_DATA_GPT_TYPE
+mkfs ext4 /dev/sda5 label:$DOCKER_PARTLABEL
+"
+      docker_mount_cmd="mkdir-p /var/lib/docker
+mount /dev/sda5 /var/lib/docker
+tar-in $DOCKERFS_TAR /var/lib/docker
+"
+    fi
     guestfish <<EOF
 add-drive $IMAGE_PATH
 run
@@ -765,23 +815,15 @@ part-init /dev/sda gpt
 part-add /dev/sda p $P1_START $P1_END
 part-add /dev/sda p $P2_START $P2_END
 part-add /dev/sda p $P3_START $P3_END
-part-add /dev/sda p $P4_START $P4_END
-part-add /dev/sda p $P5_START $P5_END
-part-set-name /dev/sda 1 config
+${opt_part_cmd}${docker_part_cmd}part-set-name /dev/sda 1 config
 part-set-name /dev/sda 2 efi
 part-set-name /dev/sda 3 $ROOTFS_PARTLABEL
-part-set-name /dev/sda 4 $OPT_PARTLABEL
-part-set-name /dev/sda 5 $DOCKER_PARTLABEL
 part-set-gpt-type /dev/sda 1 $BOOTCFG_PART_GPT_TYPE
 part-set-gpt-type /dev/sda 2 $CONFIG_PART_GPT_TYPE
 part-set-gpt-type /dev/sda 3 $LINUX_DATA_GPT_TYPE
-part-set-gpt-type /dev/sda 4 $LINUX_DATA_GPT_TYPE
-part-set-gpt-type /dev/sda 5 $LINUX_DATA_GPT_TYPE
 mkfs vfat /dev/sda1 label:config
 mkfs vfat /dev/sda2 label:efi
 mkfs ext4 /dev/sda3 label:$ROOTFS_MKFS_LABEL
-mkfs ext4 /dev/sda4 label:$OPT_PARTLABEL
-mkfs ext4 /dev/sda5 label:$DOCKER_PARTLABEL
 mount /dev/sda3 /
 mkdir-p /boot
 mkdir-p /boot/efi
@@ -792,13 +834,7 @@ tar-in $ROOTFS_PAYLOAD_TAR /
 tar-in $MODULES_TAR /
 tar-in $RPI_BOOT_TAR /config
 mkdir-p /config/cache
-mkdir-p /opt
-mkdir-p /var/lib/docker
-mount /dev/sda4 /opt
-mount /dev/sda5 /var/lib/docker
-tar-in $OPTFS_TAR /opt
-tar-in $DOCKERFS_TAR /var/lib/docker
-EOF
+${opt_mount_cmd}${docker_mount_cmd}EOF
     ;;
 esac
 
