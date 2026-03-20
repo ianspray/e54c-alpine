@@ -7,7 +7,7 @@ PAYLOAD_SHA256="/opt/rpi4-updater/nvme-image.img.zst.sha256"
 TARGET_NVME_DEVICE="${TARGET_NVME_DEVICE:-/dev/nvme0n1}"
 ROOT_PARTLABEL_REQUIRED="${ROOT_PARTLABEL_REQUIRED:-rpi4-updater-rootfs}"
 TARGET_WAIT_SECONDS="${TARGET_WAIT_SECONDS:-120}"
-UPDATER_EFI_MOUNT="/run/rpi4-updater-efi"
+
 LOCK_DIR="/run/rpi4-usb-update.lock"
 BOOT_DONE_MARKER="/run/rpi4-usb-update.done"
 
@@ -251,110 +251,48 @@ log "Root device: $root_dev"
 log "Updater bootcfg partition: $efi_dev"
 log "Target NVMe device: $TARGET_NVME_DEVICE"
 
-EXTLINUX_CONF="$UPDATER_EFI_MOUNT/extlinux/extlinux.conf"
-DISABLED_EXTLINUX_CONF="$UPDATER_EFI_MOUNT/extlinux/extlinux.conf.disabled"
-RPI_CONFIG_TXT="$UPDATER_EFI_MOUNT/config.txt"
-RPI_CMDLINE_TXT="$UPDATER_EFI_MOUNT/cmdline.txt"
-DONE_MARKER="$UPDATER_EFI_MOUNT/UPDATE_DONE"
-ROOT_EXTLINUX_PRIMARY="/boot/extlinux/extlinux.conf"
-ROOT_EXTLINUX_ALT="/extlinux/extlinux.conf"
-ROOTFS_RW_MOUNT="/run/rpi4-updater-rootfs"
-mounted_here=0
-remounted_rw=0
-bootcfg_state_persist=1
-existing_mountpoint="$(awk -v dev="$efi_dev" '$1==dev{print $2; exit}' /proc/mounts 2>/dev/null || true)"
-if [ -n "$existing_mountpoint" ]; then
-  existing_mountopts="$(awk -v dev="$efi_dev" '$1==dev{print $4; exit}' /proc/mounts 2>/dev/null || true)"
-  UPDATER_EFI_MOUNT="$existing_mountpoint"
-  log "Using existing bootcfg mountpoint: $UPDATER_EFI_MOUNT"
-  case ",$existing_mountopts," in
-    *,ro,*)
-      if mount -o remount,rw "$UPDATER_EFI_MOUNT"; then
-        remounted_rw=1
-      else
-        log "Warning: cannot remount updater bootcfg partition read-write; updater boot entry will not be disabled."
-        bootcfg_state_persist=0
-      fi
-      ;;
-  esac
-else
-  mkdir -p "$UPDATER_EFI_MOUNT"
-  mount -o rw "$efi_dev" "$UPDATER_EFI_MOUNT"
-  mounted_here=1
-fi
-EXTLINUX_CONF="$UPDATER_EFI_MOUNT/extlinux/extlinux.conf"
-DISABLED_EXTLINUX_CONF="$UPDATER_EFI_MOUNT/extlinux/extlinux.conf.disabled"
-RPI_CONFIG_TXT="$UPDATER_EFI_MOUNT/config.txt"
-RPI_CMDLINE_TXT="$UPDATER_EFI_MOUNT/cmdline.txt"
-DONE_MARKER="$UPDATER_EFI_MOUNT/UPDATE_DONE"
-
 disable_root_extlinux() {
-  local f=""
-  local rel=""
-  local src=""
+  local work_mnt="/run/rpi4-boot-rw"
 
-  if [ ! -f "$ROOT_EXTLINUX_PRIMARY" ] && [ ! -f "$ROOT_EXTLINUX_ALT" ]; then
+  mkdir -p "$work_mnt"
+  if ! mount -o rw "$efi_dev" "$work_mnt" 2>/dev/null; then
+    log "Warning: cannot mount updater boot partition as writable; skipping boot entry disable"
+    rmdir "$work_mnt" 2>/dev/null || true
     return 0
   fi
 
-  mkdir -p "$ROOTFS_RW_MOUNT"
-  if ! mount -o rw "$root_dev" "$ROOTFS_RW_MOUNT" 2>/dev/null; then
-    log "Warning: failed to mount updater rootfs read-write: $root_dev"
-    return 0
-  fi
-
-  touch "$ROOTFS_RW_MOUNT/.test-write" 2>/dev/null && rm -f "$ROOTFS_RW_MOUNT/.test-write" || {
-    umount "$ROOTFS_RW_MOUNT" 2>/dev/null || true
-    log "Warning: updater rootfs is read-only; skipping extlinux disable"
-    return 0
+  disable_file() {
+    local src="$1" dst="$2"
+    if [ -f "$src" ]; then
+      if mv "$src" "$dst" 2>/dev/null; then
+        log "Disabled updater $(basename "$src") on boot media"
+      else
+        log "Warning: failed to rename $(basename "$src") on boot media"
+      fi
+    fi
   }
 
-  for f in "$ROOT_EXTLINUX_PRIMARY" "$ROOT_EXTLINUX_ALT"; do
-    rel="${f#/}"
-    src="$ROOTFS_RW_MOUNT/$rel"
-    if [ -f "$src" ]; then
-      if ! mv "$src" "${src}.disabled"; then
-        log "Warning: failed to disable USB rootfs boot entry on device: $f"
-      fi
-    fi
-  done
+  disable_file "$work_mnt/extlinux/extlinux.conf" "$work_mnt/extlinux/extlinux.conf.disabled"
+  disable_file "$work_mnt/config.txt" "$work_mnt/config.txt.disabled"
+  disable_file "$work_mnt/cmdline.txt" "$work_mnt/cmdline.txt.disabled"
 
-  sync
-  umount "$ROOTFS_RW_MOUNT" || true
+  umount "$work_mnt" 2>/dev/null || true
+  rmdir "$work_mnt" 2>/dev/null || true
 }
 
-disable_updater_bootcfg_entry() {
-  if [ -f "$EXTLINUX_CONF" ]; then
-    if ! mv "$EXTLINUX_CONF" "$DISABLED_EXTLINUX_CONF"; then
-      log "Warning: failed to disable updater extlinux entry."
-    fi
+boot_probe_mnt="/run/rpi4-boot-probe"
+mkdir -p "$boot_probe_mnt"
+if mount -o ro "$efi_dev" "$boot_probe_mnt" 2>/dev/null; then
+  if [ -f "$boot_probe_mnt/UPDATE_DONE" ]; then
+    log "UPDATE_DONE marker found on boot media; update was already applied. Disabling boot entry and exiting."
+    umount "$boot_probe_mnt" 2>/dev/null || true
+    rmdir "$boot_probe_mnt" 2>/dev/null || true
+    disable_root_extlinux
+    exit 0
   fi
-
-  # Raspberry Pi firmware-native flow: disabling config/cmdline prevents the
-  # updater USB image from being selected again on the next boot cycle.
-  if [ -f "$RPI_CONFIG_TXT" ]; then
-    if ! mv "$RPI_CONFIG_TXT" "${RPI_CONFIG_TXT}.disabled"; then
-      log "Warning: failed to disable updater config.txt."
-    fi
-  fi
-  if [ -f "$RPI_CMDLINE_TXT" ]; then
-    if ! mv "$RPI_CMDLINE_TXT" "${RPI_CMDLINE_TXT}.disabled"; then
-      log "Warning: failed to disable updater cmdline.txt."
-    fi
-  fi
-}
-
-if [ -f "$DONE_MARKER" ]; then
-  log "Update already completed on this USB media; skipping."
-  disable_root_extlinux
-  if [ "$bootcfg_state_persist" -eq 1 ]; then
-    disable_updater_bootcfg_entry
-  fi
-  if [ "$mounted_here" -eq 1 ]; then
-    umount "$UPDATER_EFI_MOUNT" || true
-  fi
-  exit 0
+  umount "$boot_probe_mnt" 2>/dev/null || true
 fi
+rmdir "$boot_probe_mnt" 2>/dev/null || true
 
 log "Verifying payload checksum..."
 preserve_target_apkovl
@@ -394,21 +332,7 @@ fi
 
 log "Disabling USB updater boot entries so next boot falls through to NVMe..."
 disable_root_extlinux
-if [ "$bootcfg_state_persist" -eq 1 ]; then
-  disable_updater_bootcfg_entry
-  if ! date -u +"updated:%Y-%m-%dT%H:%M:%SZ target:$TARGET_NVME_DEVICE" >"$DONE_MARKER"; then
-    log "Warning: failed to write UPDATE_DONE marker."
-  fi
-else
-  log "Warning: updater bootcfg partition is read-only; leaving updater entry enabled on USB media."
-fi
 sync
-if [ "$remounted_rw" -eq 1 ]; then
-  mount -o remount,ro "$UPDATER_EFI_MOUNT" || true
-fi
-if [ "$mounted_here" -eq 1 ]; then
-  umount "$UPDATER_EFI_MOUNT" || true
-fi
 
 log "Update complete. Rebooting into NVMe image."
 sleep 2
