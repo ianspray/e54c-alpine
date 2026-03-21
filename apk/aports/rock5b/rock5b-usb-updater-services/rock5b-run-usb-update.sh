@@ -25,8 +25,8 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-if ! grep -q "root=PARTLABEL=$ROOT_PARTLABEL_REQUIRED" /proc/cmdline 2>/dev/null; then
-  log "Not running from updater rootfs (expected root=PARTLABEL=$ROOT_PARTLABEL_REQUIRED); skipping updater."
+if grep -q "root=PARTLABEL=$ROOT_PARTLABEL_REQUIRED" /proc/cmdline 2>/dev/null; then
+  log "Not running from updater rootfs (root=PARTLABEL=$ROOT_PARTLABEL_REQUIRED not in cmdline); skipping updater."
   exit 0
 fi
 
