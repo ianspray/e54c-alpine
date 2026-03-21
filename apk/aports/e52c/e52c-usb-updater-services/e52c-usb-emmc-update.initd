@@ -12,6 +12,7 @@ depend() {
 start() {
   ebegin "Running USB to eMMC update flow"
   TARGET_DEVICE="${target_device:-/dev/mmcblk0}" \
+    BOOT_DEVICE="${boot_device:-/dev/mmcblk0}" \
     ROOT_PARTLABEL_REQUIRED="${root_partlabel:-e52c-updater-rootfs}" \
     TARGET_WAIT_SECONDS="${target_wait_seconds:-120}" \
     DEBUG="${debug:-0}" \

@@ -6,6 +6,7 @@ DEBUG="${DEBUG:-0}"
 PAYLOAD_FILE="/opt/e52c-updater/nvme-image.img.zst"
 PAYLOAD_SHA256="/opt/e52c-updater/nvme-image.img.zst.sha256"
 TARGET_DEVICE="${TARGET_DEVICE:-/dev/mmcblk0}"
+BOOT_DEVICE="${BOOT_DEVICE:-}"
 ROOT_PARTLABEL_REQUIRED="${ROOT_PARTLABEL_REQUIRED:-e52c-updater-rootfs}"
 TARGET_WAIT_SECONDS="${TARGET_WAIT_SECONDS:-120}"
 
@@ -224,11 +225,15 @@ if [ -n "$base_dev" ] && [ -b "$base_dev" ]; then
   fi
 fi
 
-efi_dev="$(derive_bootcfg_device_from_root "$root_dev" || true)"
-
-if [ -z "$efi_dev" ]; then
-  log "Updater bootcfg partition could not be determined; using p2 of root device."
-  efi_dev="${base_dev}p2"
+if [ -n "$BOOT_DEVICE" ]; then
+  boot_base="${BOOT_DEVICE%p[0-9]*}"
+  efi_dev="${boot_base}p2"
+else
+  efi_dev="$(derive_bootcfg_device_from_root "$root_dev" || true)"
+  if [ -z "$efi_dev" ]; then
+    log "Updater bootcfg partition could not be determined; using p2 of root device."
+    efi_dev="${base_dev}p2"
+  fi
 fi
 
 if [ ! -b "$efi_dev" ]; then
