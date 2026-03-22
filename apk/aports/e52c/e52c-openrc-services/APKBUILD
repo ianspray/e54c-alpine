@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 # Maintainer: IWS <iws@toothless.local>
 pkgname=e52c-openrc-services
-pkgver=0.2.0
+pkgver=0.3.0
 pkgrel=0
 pkgdesc="E52C OpenRC helper services for diskless and serial operation"
 url="https://example.invalid/e52c-alpian"
@@ -21,8 +21,9 @@ source="
   e52c-bootmode-oneshot-apply.sh
   e52c-bootmode-oneshot.initd
   e52c-root-mode.initd
-  70-persistent-net.rules
   e52c-udhcpc.sh
+  e52c-net-mac-sort.sh
+  e52c-net-mac-sort.initd
 "
 builddir="$srcdir"
 options="!check"
@@ -45,8 +46,9 @@ package() {
   install -Dm755 "$srcdir"/e52c-bootmode-oneshot.initd "$pkgdir"/etc/init.d/e52c-bootmode-oneshot
   install -Dm755 "$srcdir"/e52c-root-mode.initd "$pkgdir"/etc/init.d/e52c-root-mode
 
-  install -Dm644 "$srcdir"/70-persistent-net.rules "$pkgdir"/etc/udev/rules.d/70-persistent-net.rules
   install -Dm755 "$srcdir"/e52c-udhcpc.sh "$pkgdir"/usr/share/udhcpc/default.script
+  install -Dm755 "$srcdir"/e52c-net-mac-sort.sh "$pkgdir"/usr/sbin/e52c-net-mac-sort
+  install -Dm755 "$srcdir"/e52c-net-mac-sort.initd "$pkgdir"/etc/init.d/e52c-net-mac-sort
 }
 
 sha512sums=""

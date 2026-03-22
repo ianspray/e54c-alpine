@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: MIT
-# Persistent naming for e52c DSA switch ports by MAC address.
-# Port 0 (left/front): MAC ends in ...:99:ed -> eth0
-# Port 1 (right/back): MAC ends in ...:99:ee -> eth1
-SUBSYSTEM=="net", ATTR{address}=="00:48:54:20:99:ed", NAME="eth0"
-SUBSYSTEM=="net", ATTR{address}=="00:48:54:20:99:ee", NAME="eth1"
+# Static MAC-based naming is replaced by dynamic MAC-sort naming.
+# See e52c-net-mac-sort: enumerates all Ethernet interfaces, sorts by
+# MAC address, and assigns eth0, eth1, ... in sorted order. This works
+# for any number of boards and any number of Ethernet ports on a board.
