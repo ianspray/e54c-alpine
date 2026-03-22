@@ -13,4 +13,6 @@
 Role: production/runtime image
 Storage: tmpfs (all changes are ephemeral)
 
+Build: BUILD_INFO_PLACEHOLDER
+
 This MOTD is managed by the image build in this repository.

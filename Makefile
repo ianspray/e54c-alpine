@@ -203,8 +203,19 @@ $(KERNEL_STAMP): $(KERNEL_INPUTS_HASH) | $(STAMPS_DIR)
 	"$(SCRIPTS_DIR)/build-kernel.sh"
 	touch "$@"
 
-$(ROOTFS_STAMP): $(ROOTFS_INPUTS_HASH) $(APK_REPO_STAMP) | $(STAMPS_DIR)
-	$(ROOT_AUTHORIZED_KEYS_FILE_ENV) $(CUSTOM_APK_KEYS_DIR_ENV) $(SCRIPTS_DIR)/prepare-alpian-rootfs.sh
+$(REPO_ROOT)/build/.build_info: | $(STAMPS_DIR)
+	@mkdir -p $(REPO_ROOT)/build && \
+	n=$$(cat $(REPO_ROOT)/build/.build_number 2>/dev/null || echo 0) && \
+	n=$$((n + 1)) && \
+	echo "$$n" > $(REPO_ROOT)/build/.build_number && \
+	echo "ALPIAN_BUILD_INFO=build #$$n $$(date +'%Y-%m-%d %H:%M:%S')" > "$@"
+
+$(ROOTFS_STAMP): $(ROOTFS_INPUTS_HASH) $(APK_REPO_STAMP) $(REPO_ROOT)/build/.build_info | $(STAMPS_DIR)
+	@build_info=$$(cat $(REPO_ROOT)/build/.build_info 2>/dev/null); \
+	build_val=$$(echo "$$build_info" | sed 's/ALPIAN_BUILD_INFO=//'); \
+	$(ROOT_AUTHORIZED_KEYS_FILE_ENV) $(CUSTOM_APK_KEYS_DIR_ENV) \
+	ALPIAN_BUILD_INFO="$$build_val" \
+	"$(SCRIPTS_DIR)/prepare-alpian-rootfs.sh"
 	touch "$@"
 
 $(MAIN_IMAGE_STAMP): $(MAIN_IMAGE_INPUTS_HASH) $(UBOOT_ASSETS_STAMP) $(KERNEL_STAMP) $(ROOTFS_STAMP) | $(STAMPS_DIR)

@@ -344,6 +344,11 @@ if [ -n "$MOTD_TEMPLATE_FILE" ]; then
     exit 1
   fi
   install -m 0644 "$MOTD_TEMPLATE_FILE" "$ROOTFS_DIR/etc/motd"
+  if [ -n "${ALPIAN_BUILD_INFO:-}" ]; then
+    sed -i "s|BUILD_INFO_PLACEHOLDER|$ALPIAN_BUILD_INFO|" "$ROOTFS_DIR/etc/motd"
+  else
+    sed -i 's|BUILD_INFO_PLACEHOLDER|unknown|' "$ROOTFS_DIR/etc/motd"
+  fi
 fi
 
 cat >"$ROOTFS_DIR/etc/fstab" <<'EOF'
