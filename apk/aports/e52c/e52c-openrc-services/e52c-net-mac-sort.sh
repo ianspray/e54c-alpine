@@ -23,7 +23,8 @@ sort_interfaces_by_mac() {
 generate_rules() {
     local mac iface eth_idx=0
     local tmp_file
-    tmp_file="$(mktemp "$RULES_FILE.tmp.XXXXXX")"
+    mkdir -p /var/tmp
+    tmp_file="$(mktemp -p /var/tmp "$RULES_FILE.tmp.XXXXXX")"
     chmod 0644 "$tmp_file"
 
     printf '# SPDX-License-Identifier: MIT\n' >"$tmp_file"
