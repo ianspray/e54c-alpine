@@ -6,7 +6,7 @@ DEBUG="${DEBUG:-0}"
 PAYLOAD_FILE="/opt/e52c-updater/nvme-image.img.zst"
 PAYLOAD_SHA256="/opt/e52c-updater/nvme-image.img.zst.sha256"
 TARGET_DEVICE="${TARGET_DEVICE:-/dev/mmcblk0}"
-BOOT_DEVICE="${BOOT_DEVICE:-}"
+BOOT_DEVICE="${BOOT_DEVICE:-/dev/mmcblk1}"
 ROOT_PARTLABEL_REQUIRED="${ROOT_PARTLABEL_REQUIRED:-e52c-updater-rootfs}"
 TARGET_WAIT_SECONDS="${TARGET_WAIT_SECONDS:-120}"
 
@@ -31,8 +31,8 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-grep -q "root=PARTLABEL=$ROOT_PARTLABEL_REQUIRED" /proc/cmdline 2>/dev/null || exit 0
-log "Not running from updater rootfs (root=PARTLABEL=$ROOT_PARTLABEL_REQUIRED not in cmdline); skipping updater."
+grep -qF "root=PARTLABEL=$ROOT_PARTLABEL_REQUIRED" /proc/cmdline 2>/dev/null || exit 0
+log "Running from updater rootfs (root=PARTLABEL=$ROOT_PARTLABEL_REQUIRED in cmdline); proceeding with update."
 
 resolve_root_device() {
   local src="" devname=""
