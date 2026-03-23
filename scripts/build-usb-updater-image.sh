@@ -157,7 +157,7 @@ mkdir -p "$UPDATER_ROOTFS_DIR/etc/conf.d"
   echo "target_device=\"${UPDATER_TARGET_DEVICE}\""
   [ -n "$UPDATER_BOOT_DEVICE" ] && echo "boot_device=\"${UPDATER_BOOT_DEVICE}\""
   echo "root_partlabel=\"${UPDATER_ROOT_PARTLABEL}\""
-  echo "target_wait_seconds=\"120\""
+  echo "target_wait_seconds=\"15\""
 } >"$UPDATER_ROOTFS_DIR/etc/conf.d/$UPDATER_SERVICE_NAME"
 
 mkdir -p "$UPDATER_ROOTFS_DIR/etc/runlevels/boot"
