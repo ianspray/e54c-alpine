@@ -21,18 +21,29 @@ echo "=== Building custom APK packages ==="
 
 mkdir -p "$OUTPUT_DIR/apk"
 
-if [ "$(id -u)" = "0" ]; then
-    export ABUILD_ROOT=1
+if ! id abuild >/dev/null 2>&1; then
+    echo "=== Creating abuild user ==="
+    adduser -D -s /bin/sh abuild
+    addgroup abuild abuild
 fi
+
+ABUILD_HOME="$(getent passwd abuild | cut -d: -f6)"
+
+cp "$ABUILD_KEYS/abuild.rsa.pub" /etc/apk/keys/ 2>/dev/null || true
+
+chmod 700 "$ABUILD_KEYS"
+chmod 600 "$ABUILD_KEYS/abuild.rsa"
+chmod 644 "$ABUILD_KEYS/abuild.rsa.pub"
+
+cp -r "$ABUILD_KEYS" "$ABUILD_HOME/.abuild"
+chown -R abuild:abuild "$ABUILD_HOME/.abuild"
+
+chmod 700 "$ABUILD_HOME/.abuild"
+chmod 600 "$ABUILD_HOME/.abuild/abuild.rsa"
+chmod 644 "$ABUILD_HOME/.abuild/abuild.rsa.pub"
 
 export ABUILD_NOCOLOR=1
 export ABUILD_NOLOG=1
-export PACKAGER_PRIVKEY="$ABUILD_KEYS/abuild.rsa"
-
-echo "PACKAGER_PRIVKEY=$ABUILD_KEYS/abuild.rsa" > ~/.abuild/abuild.conf
-echo 'CHOST="aarch64-alpine-linux-musl"' >> ~/.abuild/abuild.conf
-
-cp "$ABUILD_KEYS/abuild.rsa.pub" /etc/apk/keys/ 2>/dev/null || true
 
 echo "=== Updating Alpine package index ==="
 apk update
@@ -43,13 +54,12 @@ for apkbuild in "$APORTS_DIR"/*/*/APKBUILD; do
         pkgdir="$(dirname "$apkbuild")"
         pkgname="$(basename "$pkgdir")"
         echo "Building $pkgname..."
-        cd "$pkgdir"
-        abuild checksum 2>/dev/null || true
-        abuild -r 2>&1 || echo "Failed to build $pkgname"
+        su-exec abuild sh -c "cd $pkgdir && abuild checksum 2>/dev/null || true"
+        su-exec abuild sh -c "cd $pkgdir && abuild -r" 2>&1 || echo "Failed to build $pkgname"
     fi
 done
 
-for apk in "$HOME"/packages/aarch64/*.apk; do
+for apk in "$ABUILD_HOME"/packages/aarch64/*.apk; do
     if [ -f "$apk" ]; then
         cp "$apk" "$OUTPUT_DIR/apk/"
         echo "Copied: $apk"
