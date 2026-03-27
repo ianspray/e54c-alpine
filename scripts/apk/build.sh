@@ -24,6 +24,8 @@ mkdir -p "$OUTPUT_DIR/apk"
 if [ "$(id -u)" = "0" ]; then
     mkdir -p /build/.abuild
     chown -R build:build /build
+    mkdir -p /var/log/abuild
+    chown -R build:build /var/log/abuild
 
     if [ ! -f /build/.abuild/abuild.rsa ]; then
         echo "=== Generating APK signing keys ==="
@@ -36,6 +38,7 @@ if [ "$(id -u)" = "0" ]; then
 fi
 
 export ABUILD_NOCOLOR=1
+export ABUILD_LOG=1
 mkdir -p ~/.abuild
 
 if [ ! -f ~/.abuild/abuild.rsa ]; then
@@ -75,7 +78,7 @@ build() {
 }
 
 package() {
-    make PREFIX="$pkgdir/usr" install
+    install -D -m 0755 keychain "$pkgdir/usr/bin/keychain"
 }
 APKBUILD_EOF
 
