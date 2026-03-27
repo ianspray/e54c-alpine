@@ -33,6 +33,7 @@ if [ "$(id -u)" = "0" ]; then
     fi
 
     cp /build/.abuild/abuild.rsa.pub /etc/apk/keys/
+    mkdir -p /home/build/.abuild
     cp /build/.abuild/abuild.rsa /home/build/.abuild/
     cp /build/.abuild/abuild.rsa.pub /home/build/.abuild/
     chown -R build:build /home/build
@@ -49,10 +50,6 @@ echo "PACKAGER_PRIVKEY=$HOME/.abuild/abuild.rsa" > ~/.abuild/abuild.conf
 echo 'CHOST="aarch64-alpine-linux-musl"' >> ~/.abuild/abuild.conf
 
 echo "=== Updating Alpine package index ==="
-echo "=== Repository config ==="
-cat /etc/apk/repositories
-echo "=== Testing network ==="
-wget -q -O /dev/null https://dl-cdn.alpinelinux.org/alpine/v3.23/main/aarch64/APKINDEX.tar.gz || echo "wget failed"
 apk update
 
 setup_alpine_sdk() {
