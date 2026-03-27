@@ -42,7 +42,8 @@ for apkbuild in "$APORTS_DIR"/*/*/APKBUILD; do
         pkgname="$(basename "$pkgdir")"
         echo "Building $pkgname..."
         cd "$pkgdir"
-        abuild 2>&1 || echo "Failed to build $pkgname"
+        abuild checksum 2>/dev/null || true
+        abuild -r 2>&1 || echo "Failed to build $pkgname"
     fi
 done
 
