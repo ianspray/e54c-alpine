@@ -33,6 +33,8 @@ if [ "$(id -u)" = "0" ]; then
     cp /build/.abuild/abuild.rsa.pub /etc/apk/keys/
     cp /build/.abuild/abuild.rsa /home/build/.abuild/
     cp /build/.abuild/abuild.rsa.pub /home/build/.abuild/
+    chmod 600 /home/build/.abuild/abuild.rsa
+    chmod 644 /home/build/.abuild/abuild.rsa.pub
     chown -R build:build /home/build
 
     exec su - build -c "PACKAGES_DIR=$PACKAGES_DIR OUTPUT_DIR=$OUTPUT_DIR CACHE_DIR=$CACHE_DIR /build/scripts/apk/build.sh"
@@ -41,6 +43,7 @@ fi
 export ABUILD_NOCOLOR=1
 export ABUILD_NOLOG=1
 export PACKAGER_PRIVKEY="$HOME/.abuild/abuild.rsa"
+export REPODEST=/tmp/repo
 mkdir -p ~/.abuild
 
 echo "PACKAGER_PRIVKEY=$HOME/.abuild/abuild.rsa" > ~/.abuild/abuild.conf
@@ -88,10 +91,18 @@ build_apk() {
         cd "$pkgdir"
         if [ -f "APKBUILD" ]; then
             echo "Building $pkgname APK..."
-            abuild -r || true
-            cp "$pkgdir"/*.apk "$OUTPUT_DIR/apk/" 2>/dev/null || true
+            abuild 2>&1 || true
         fi
     fi
+}
+
+copy_apks() {
+    for apk in "$PACKAGES_DIR"/*/*.apk; do
+        if [ -f "$apk" ]; then
+            cp "$apk" "$OUTPUT_DIR/apk/"
+            echo "Copied: $apk"
+        fi
+    done
 }
 
 setup_alpine_sdk
@@ -100,5 +111,7 @@ for pkg in "$PACKAGES_DIR"/*/; do
     pkgname=$(basename "$pkg")
     build_apk "$pkgname"
 done
+
+copy_apks
 
 echo "=== APK build complete ==="
