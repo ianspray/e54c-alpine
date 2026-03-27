@@ -57,7 +57,7 @@ for apkbuild in "$APORTS_DIR"/*/*/APKBUILD; do
 #!/bin/sh
 cd "$pkgdir"
 HOME='$BUILD_DIR' PACKAGERDIR='$BUILD_DIR/packages' PACKAGER_PRIVKEY='$BUILD_DIR/.abuild/abuild.rsa' abuild checksum 2>/dev/null || true
-HOME='$BUILD_DIR' PACKAGERDIR='$BUILD_DIR/packages' PACKAGER_PRIVKEY='$BUILD_DIR/.abuild/abuild.rsa' abuild -r
+HOME='$BUILD_DIR' PACKAGERDIR='$BUILD_DIR/packages' PACKAGER_PRIVKEY='$BUILD_DIR/.abuild/abuild.rsa' abuild -R
 SCRIPT
         chmod +x "$BUILD_SCRIPT"
         su -s /bin/sh build -c "$BUILD_SCRIPT" 2>&1 || echo "Failed to build $pkgname"
