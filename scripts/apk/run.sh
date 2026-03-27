@@ -45,14 +45,22 @@ export PACKAGERDIR="$BUILD_DIR/packages"
 echo "=== Updating Alpine package index ==="
 apk update
 
+BUILD_SCRIPT="$BUILD_DIR/build.sh"
+
 echo "=== Building packages from $APORTS_DIR ==="
 for apkbuild in "$APORTS_DIR"/*/*/APKBUILD; do
     if [ -f "$apkbuild" ]; then
         pkgdir="$(dirname "$apkbuild")"
         pkgname="$(basename "$pkgdir")"
         echo "Building $pkgname..."
-        su -s /bin/sh build -c "HOME='$BUILD_DIR' PACKAGERDIR='$BUILD_DIR/packages' PACKAGER_PRIVKEY='$BUILD_DIR/.abuild/abuild.rsa' abuild checksum 2>/dev/null || true"
-        su -s /bin/sh build -c "HOME='$BUILD_DIR' PACKAGERDIR='$BUILD_DIR/packages' PACKAGER_PRIVKEY='$BUILD_DIR/.abuild/abuild.rsa' abuild -r" 2>&1 || echo "Failed to build $pkgname"
+        cat > "$BUILD_SCRIPT" <<SCRIPT
+#!/bin/sh
+cd "$pkgdir"
+HOME='$BUILD_DIR' PACKAGERDIR='$BUILD_DIR/packages' PACKAGER_PRIVKEY='$BUILD_DIR/.abuild/abuild.rsa' abuild checksum 2>/dev/null || true
+HOME='$BUILD_DIR' PACKAGERDIR='$BUILD_DIR/packages' PACKAGER_PRIVKEY='$BUILD_DIR/.abuild/abuild.rsa' abuild -r
+SCRIPT
+        chmod +x "$BUILD_SCRIPT"
+        su -s /bin/sh build -c "$BUILD_SCRIPT" 2>&1 || echo "Failed to build $pkgname"
     fi
 done
 
