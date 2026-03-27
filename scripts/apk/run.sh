@@ -33,6 +33,10 @@ export HOME=/home/build
 mkdir -p "$HOME/packages"
 chmod 755 "$HOME"
 
+CURRENT_USER=$(whoami)
+CURRENT_GROUP=$(id -gn)
+addgroup "$CURRENT_GROUP" abuild 2>/dev/null || true
+
 echo "=== Updating Alpine package index ==="
 apk update
 
