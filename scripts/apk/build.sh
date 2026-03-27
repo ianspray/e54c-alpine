@@ -59,11 +59,7 @@ build_apk() {
         cd "$pkgdir"
         if [ -f "APKBUILD" ]; then
             echo "Building $pkgname APK..."
-            if [ "$(id -u)" = "0" ]; then
-                su - build -c "cd $pkgdir && abuild rootbld" || true
-            else
-                abuild rootbld || true
-            fi
+            abuild -r
             cp "$pkgdir"/packages/aarch64/*.apk "$OUTPUT_DIR/apk/" 2>/dev/null || true
         fi
     fi
@@ -71,25 +67,27 @@ build_apk() {
 
 setup_alpine_sdk
 
+if [ "$(id -u)" = "0" ]; then
+    mkdir -p /build/.abuild
+    chown -R build:build /build
+    exec su - build -c "PACKAGES_DIR=$PACKAGES_DIR OUTPUT_DIR=$OUTPUT_DIR CACHE_DIR=$CACHE_DIR /build/scripts/apk/build.sh"
+fi
+
 export ABUILD_NOCOLOR=1
-mkdir -p /build/.abuild
-chown -R build:build /build 2>/dev/null || true
+mkdir -p ~/.abuild
 
-if [ ! -f /build/.abuild/abuild.rsa ]; then
+if [ ! -f ~/.abuild/abuild.rsa ]; then
     echo "=== Generating APK signing keys ==="
-    ssh-keygen -t rsa -b 4096 -m PEM -f /build/.abuild/abuild.rsa -N "" -C "build@alpian"
-    cp /build/.abuild/abuild.rsa.pub /etc/apk/keys/
-    chown -R build:build /build/.abuild
+    ssh-keygen -t rsa -b 4096 -m PEM -f ~/.abuild/abuild.rsa -N "" -C "build@alpian"
+    cp ~/.abuild/abuild.rsa.pub /etc/apk/keys/
 fi
 
-echo "PACKAGER_PRIVKEY=/build/.abuild/abuild.rsa" > /build/.abuild/abuild.conf
-echo 'CHOST="aarch64-alpine-linux-musl"' >> /build/.abuild/abuild.conf
+echo "PACKAGER_PRIVKEY=$HOME/.abuild/abuild.rsa" > ~/.abuild/abuild.conf
+echo 'CHOST="aarch64-alpine-linux-musl"' >> ~/.abuild/abuild.conf
 
-if [ "$PACKAGES_DIR" != "/" ]; then
-    for pkg in "$PACKAGES_DIR"/*/; do
-        pkgname=$(basename "$pkg")
-        build_apk "$pkgname"
-    done
-fi
+for pkg in "$PACKAGES_DIR"/*/; do
+    pkgname=$(basename "$pkg")
+    build_apk "$pkgname"
+done
 
 echo "=== APK build complete ==="

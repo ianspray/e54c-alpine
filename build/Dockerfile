@@ -29,7 +29,6 @@ RUN apk add --no-cache \
     confuse-dev \
     openssh \
     openssl \
-    bubblewrap \
     && rm -rf /var/cache/apk/*
 
 WORKDIR /build
