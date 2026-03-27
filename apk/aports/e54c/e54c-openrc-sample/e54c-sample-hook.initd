@@ -1,0 +1,25 @@
+#!/sbin/openrc-run
+# SPDX-License-Identifier: MIT
+
+name="e54c-sample-hook"
+description="Sample OpenRC hook from a custom APK"
+
+command="/usr/libexec/e54c-sample-hook"
+
+# Keep this as a one-shot hook; no background daemon or pidfile required.
+command_background="no"
+
+start_pre() {
+  checkpath --directory --mode 0755 /run
+}
+
+depend() {
+  need localmount
+  before networking
+}
+
+start() {
+  ebegin "Running e54c sample hook"
+  "$command"
+  eend $?
+}

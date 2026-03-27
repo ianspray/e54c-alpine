@@ -1,0 +1,19 @@
+#!/sbin/openrc-run
+# SPDX-License-Identifier: MIT
+
+name="rpi4-usb-nvme-update"
+description="Flash bundled NVMe image from USB media, then reboot"
+
+depend() {
+  need localmount
+  before networking
+}
+
+start() {
+  ebegin "Running USB to NVMe update flow"
+  TARGET_NVME_DEVICE="${target_device:-/dev/nvme0n1}" \
+    ROOT_PARTLABEL_REQUIRED="${root_partlabel:-rpi4-updater-rootfs}" \
+    TARGET_WAIT_SECONDS="${target_wait_seconds:-120}" \
+    /usr/sbin/rpi4-run-usb-update
+  eend $?
+}

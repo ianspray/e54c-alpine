@@ -1,0 +1,16 @@
+#!/sbin/openrc-run
+# SPDX-License-Identifier: MIT
+
+name="e25-bootmode-oneshot"
+description="Apply one-shot maintenance boot mode and restore immutable default"
+
+depend() {
+  need localmount
+  before networking
+}
+
+start() {
+  ebegin "Applying one-shot boot mode state"
+  /usr/sbin/e25-bootmode-oneshot-apply >/dev/null 2>&1 || true
+  eend 0
+}

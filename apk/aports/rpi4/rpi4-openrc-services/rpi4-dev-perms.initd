@@ -1,0 +1,16 @@
+#!/sbin/openrc-run
+# SPDX-License-Identifier: MIT
+
+name="rpi4-dev-perms"
+description="Apply custom device-node permissions for fixed peripherals"
+
+depend() {
+  need modules
+  before networking
+}
+
+start() {
+  ebegin "Applying custom device permissions"
+  /usr/sbin/rpi4-apply-dev-perms
+  eend 0
+}

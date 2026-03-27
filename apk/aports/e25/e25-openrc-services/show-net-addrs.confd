@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+# Serial console device used for boot/login output.
+serial_tty="ttyS2"
+
+# Maximum seconds to wait for global addresses before printing banner.
+wait_seconds=40
+
+# Optional title shown in /etc/issue and serial banner.
+banner_title=""

@@ -44,7 +44,8 @@ RUN mkdir -p /var/cache/distfiles /var/cache/apkcache /build/config \
 
 RUN adduser -D build && addgroup build abuild \
     && mkdir -p /var/log/abuild /home/build/.abuild \
-    && chown -R build:build /var/log/abuild /home/build
+    && chown -R build:build /var/log/abuild /home/build \
+    && chmod 755 /var/log/abuild
 
 COPY config/*.conf /build/config/
 COPY scripts/ /build/scripts/

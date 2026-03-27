@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: MIT
+target_device="/dev/mmcblk0"
+boot_device="/dev/mmcblk1"
+root_partlabel="e52c-updater-rootfs"
+target_wait_seconds="15"
+# Set to 1 for verbose debug output on serial console
+debug="0"

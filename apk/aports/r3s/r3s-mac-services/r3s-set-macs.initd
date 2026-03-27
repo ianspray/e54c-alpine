@@ -1,0 +1,16 @@
+#!/sbin/openrc-run
+# SPDX-License-Identifier: MIT
+
+name="r3s-set-macs"
+description="Assign deterministic MAC addresses to NanoPi R3S Ethernet ports"
+
+depend() {
+  need modules
+  before networking
+}
+
+start() {
+  ebegin "Assigning deterministic Ethernet MAC addresses"
+  /usr/sbin/r3s-set-macs
+  eend $?
+}
