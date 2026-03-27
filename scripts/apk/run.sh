@@ -23,6 +23,7 @@ mkdir -p "$OUTPUT_DIR/apk"
 
 BUILD_DIR="/tmp/abuild"
 mkdir -p "$BUILD_DIR/.abuild" "$BUILD_DIR/packages"
+chown -R 1000:1000 "$BUILD_DIR"
 
 chmod 700 "$ABUILD_KEYS"
 chmod 600 "$ABUILD_KEYS/abuild.rsa"
