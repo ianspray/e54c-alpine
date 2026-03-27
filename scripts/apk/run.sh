@@ -4,7 +4,7 @@
 
 CACHE_DIR="${CACHE_DIR:-/build/cache}"
 OUTPUT_DIR="${OUTPUT_DIR:-/output}"
-PACKAGES_DIR="${PACKAGES_DIR:-/build/packages}"
+APORTS_DIR="${APORTS_DIR:-/build/apk/aports}"
 ABUILD_KEYS="${ABUILD_KEYS:-/build/.abuild}"
 
 for board in rock5b rock5c rock5e rock3b rpi4 rpi5; do
@@ -19,11 +19,10 @@ ALPINE_VERSION="${ALPINE_VERSION:-3.23.3}"
 
 echo "=== Building custom APK packages ==="
 
-mkdir -p "$PACKAGES_DIR"
 mkdir -p "$OUTPUT_DIR/apk"
 
 if [ "$(id -u)" = "0" ]; then
-    exec su build -c "ABUILD_KEYS=$ABUILD_KEYS PACKAGES_DIR=$PACKAGES_DIR OUTPUT_DIR=$OUTPUT_DIR CACHE_DIR=$CACHE_DIR /build/scripts/apk/run.sh"
+    exec su build -c "ABUILD_KEYS=$ABUILD_KEYS APORTS_DIR=$APORTS_DIR OUTPUT_DIR=$OUTPUT_DIR CACHE_DIR=$CACHE_DIR /build/scripts/apk/run.sh"
 fi
 
 export ABUILD_NOCOLOR=1
@@ -36,18 +35,18 @@ echo 'CHOST="aarch64-alpine-linux-musl"' >> ~/.abuild/abuild.conf
 echo "=== Updating Alpine package index ==="
 apk update
 
-for pkg in "$PACKAGES_DIR"/*/; do
-    pkgname=$(basename "$pkg")
-    pkgdir="$pkg"
-    
-    if [ -d "$pkgdir" ] && [ -f "$pkgdir/APKBUILD" ]; then
-        echo "Building $pkgname APK..."
+echo "=== Building packages from $APORTS_DIR ==="
+for apkbuild in "$APORTS_DIR"/*/*/APKBUILD; do
+    if [ -f "$apkbuild" ]; then
+        pkgdir="$(dirname "$apkbuild")"
+        pkgname="$(basename "$pkgdir")"
+        echo "Building $pkgname..."
         cd "$pkgdir"
-        abuild 2>&1 || true
+        abuild 2>&1 || echo "Failed to build $pkgname"
     fi
 done
 
-for apk in "$PACKAGES_DIR"/*/*.apk; do
+for apk in "$HOME"/packages/aarch64/*.apk; do
     if [ -f "$apk" ]; then
         cp "$apk" "$OUTPUT_DIR/apk/"
         echo "Copied: $apk"

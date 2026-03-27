@@ -121,7 +121,7 @@ kernel:
 
 apk:
 	@echo "=== Stage: Build custom APK packages ==="
-	@ABUILD_KEYS=/build/.abuild PACKAGES_DIR=/build/apk/aports CACHE_DIR=$(CACHE_DIR) $(SCRIPTS_DIR)/apk/run.sh
+	@ABUILD_KEYS=/build/.abuild APORTS_DIR=/build/apk/aports CACHE_DIR=$(CACHE_DIR) $(SCRIPTS_DIR)/apk/run.sh
 
 root:
 	@echo "=== Stage: Build root filesystem ==="
@@ -142,7 +142,7 @@ build-%: setup-dirs setup-abuild-keys
 			CACHE_DIR=$(CACHE_DIR) $(SCRIPTS_DIR)/fetch/$$board.sh; \
 			CACHE_DIR=$(CACHE_DIR) $(SCRIPTS_DIR)/uboot/$$board.sh; \
 			CACHE_DIR=$(CACHE_DIR) $(SCRIPTS_DIR)/kernel/$$board.sh; \
-			ABUILD_KEYS=/build/.abuild PACKAGES_DIR=/build/apk/aports CACHE_DIR=$(CACHE_DIR) $(SCRIPTS_DIR)/apk/run.sh; \
+			ABUILD_KEYS=/build/.abuild APORTS_DIR=/build/apk/aports CACHE_DIR=$(CACHE_DIR) $(SCRIPTS_DIR)/apk/run.sh; \
 			CACHE_DIR=$(CACHE_DIR) ROOTFS_DIR=$(BUILD_DIR)/rootfs $(SCRIPTS_DIR)/root/$$board.sh; \
 			ROOTFS_DIR=$(BUILD_DIR)/rootfs OUTPUT_DIR=$(OUTPUT_DIR) $(SCRIPTS_DIR)/image/$$board.sh; \
 			break; \
