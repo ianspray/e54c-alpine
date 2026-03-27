@@ -49,6 +49,10 @@ echo "PACKAGER_PRIVKEY=$HOME/.abuild/abuild.rsa" > ~/.abuild/abuild.conf
 echo 'CHOST="aarch64-alpine-linux-musl"' >> ~/.abuild/abuild.conf
 
 echo "=== Updating Alpine package index ==="
+echo "=== Repository config ==="
+cat /etc/apk/repositories
+echo "=== Testing network ==="
+wget -q -O /dev/null https://dl-cdn.alpinelinux.org/alpine/v3.23/main/aarch64/APKINDEX.tar.gz || echo "wget failed"
 apk update
 
 setup_alpine_sdk() {
