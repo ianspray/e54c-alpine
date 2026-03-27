@@ -2,7 +2,19 @@
 <!-- SPDX-License-Identifier: MIT -->
 <!-- Copyright (c) 2026 Ian Spray -->
 
-A custom Alpine Linux distribution for aarch64 SBC appliances.
+![alpian logo](alpian.png "alpian logo")
+
+A custom Alpine Linux distribution for AArch64 SBC appliances.
+
+## Overview
+
+This project is based on [Alpine Linux](https://alpinelinux.org) and extends the basic ramdisc deployment to also include u-boot and Linux kern
+el build helpers for multiple AArch64 SBC's.  The Rdaxa devices in particular often have outadted or odd build frameworks, and each SBC often g
+ets an a different framework with no backporting.
+
+Rather than fight with the manufacturer tooling, this project has been created to offer a very similar base O/S experience across a range of ac
+cessible AArch64 SBC's, and to make it easier to configure the O/S via custom APK's so that creating a tailored O/S is potentially easier than
+trying to cut down a more fully featured Linux system to fit on smaller install media.
 
 ## Target Boards
 
