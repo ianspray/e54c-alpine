@@ -61,28 +61,31 @@ container-spawn = $(CONTAINER_RUNTIME) run --rm \
 	$(CONTAINER_NAME) \
 	make --no-print-directory $(1)
 
-fetch: 
+setup-dirs:
+	@mkdir -p $(CACHE_DIR)/{kernel,uboot,apk,rootfs} $(OUTPUT_DIR)
+
+fetch: setup-dirs
 	$(call container-spawn,fetch)
 
-uboot: 
+uboot: setup-dirs
 	$(call container-spawn,uboot)
 
-kernel: 
+kernel: setup-dirs
 	$(call container-spawn,kernel)
 
-apk: 
+apk: setup-dirs
 	$(call container-spawn,apk)
 
-root: 
+root: setup-dirs
 	$(call container-spawn,root)
 
-image: 
+image: setup-dirs
 	$(call container-spawn,image)
 
-build-%: 
+build-%: setup-dirs
 	$(call container-spawn,build-$(filter-out build-,$(MAKECMDGOALS)))
 
-all-boards: 
+all-boards: setup-dirs
 	$(call container-spawn,all-boards)
 
 else
