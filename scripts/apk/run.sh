@@ -23,7 +23,7 @@ mkdir -p "$PACKAGES_DIR"
 mkdir -p "$OUTPUT_DIR/apk"
 
 if [ "$(id -u)" = "0" ]; then
-    exec su builder -c "ABUILD_KEYS=$ABUILD_KEYS PACKAGES_DIR=$PACKAGES_DIR OUTPUT_DIR=$OUTPUT_DIR CACHE_DIR=$CACHE_DIR /build/scripts/apk/run.sh"
+    exec su build -c "ABUILD_KEYS=$ABUILD_KEYS PACKAGES_DIR=$PACKAGES_DIR OUTPUT_DIR=$OUTPUT_DIR CACHE_DIR=$CACHE_DIR /build/scripts/apk/run.sh"
 fi
 
 export ABUILD_NOCOLOR=1
