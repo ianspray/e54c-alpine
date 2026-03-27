@@ -49,8 +49,8 @@ for apkbuild in "$APORTS_DIR"/*/*/APKBUILD; do
         pkgdir="$(dirname "$apkbuild")"
         pkgname="$(basename "$pkgdir")"
         echo "Building $pkgname..."
-        su -s /bin/sh build -c "PACKAGER_PRIVKEY=$BUILD_DIR/.abuild/abuild.rsa abuild checksum 2>/dev/null || true"
-        su -s /bin/sh build -c "PACKAGER_PRIVKEY=$BUILD_DIR/.abuild/abuild.rsa abuild -r" 2>&1 || echo "Failed to build $pkgname"
+        su -s /bin/sh build -c "cd '$pkgdir' && PACKAGER_PRIVKEY='$BUILD_DIR/.abuild/abuild.rsa' abuild checksum 2>/dev/null || true"
+        su -s /bin/sh build -c "cd '$pkgdir' && PACKAGER_PRIVKEY='$BUILD_DIR/.abuild/abuild.rsa' abuild -r" 2>&1 || echo "Failed to build $pkgname"
     fi
 done
 
