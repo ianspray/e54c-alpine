@@ -21,6 +21,9 @@ RUN apk add --no-cache \
     u-boot-tools \
     py3-yaml \
     python3 \
+    autoconf \
+    automake \
+    libtool \
     && rm -rf /var/cache/apk/*
 
 WORKDIR /build
