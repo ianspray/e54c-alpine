@@ -1,7 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Ian Spray
-set -e
 
 CACHE_DIR="${CACHE_DIR:-/build/cache}"
 OUTPUT_DIR="${OUTPUT_DIR:-/output}"
@@ -60,7 +59,11 @@ build_apk() {
         cd "$pkgdir"
         if [ -f "APKBUILD" ]; then
             echo "Building $pkgname APK..."
-            abuild rootbld || true
+            if [ "$(id -u)" = "0" ]; then
+                su - build -c "cd $pkgdir && abuild rootbld" || true
+            else
+                abuild rootbld || true
+            fi
             cp "$pkgdir"/packages/aarch64/*.apk "$OUTPUT_DIR/apk/" 2>/dev/null || true
         fi
     fi
@@ -69,14 +72,14 @@ build_apk() {
 setup_alpine_sdk
 
 export ABUILD_NOCOLOR=1
-export ABUILD_ROOT=1
 mkdir -p /build/.abuild
+chown -R build:build /build 2>/dev/null || true
 
 if [ ! -f /build/.abuild/abuild.rsa ]; then
     echo "=== Generating APK signing keys ==="
     ssh-keygen -t rsa -b 4096 -m PEM -f /build/.abuild/abuild.rsa -N "" -C "build@alpian"
-    openssl rsa -in /build/.abuild/abuild.rsa -out /build/.abuild/abuild.rsa -passout pass:"" 2>/dev/null || true
     cp /build/.abuild/abuild.rsa.pub /etc/apk/keys/
+    chown -R build:build /build/.abuild
 fi
 
 echo "PACKAGER_PRIVKEY=/build/.abuild/abuild.rsa" > /build/.abuild/abuild.conf
