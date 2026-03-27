@@ -21,20 +21,22 @@ echo "=== Building custom APK packages ==="
 
 mkdir -p "$OUTPUT_DIR/apk"
 
+BUILD_DIR="/tmp/abuild"
+mkdir -p "$BUILD_DIR/.abuild" "$BUILD_DIR/packages"
+
 chmod 700 "$ABUILD_KEYS"
 chmod 600 "$ABUILD_KEYS/abuild.rsa"
 chmod 644 "$ABUILD_KEYS/abuild.rsa.pub"
 
+cp "$ABUILD_KEYS/abuild.rsa" "$BUILD_DIR/.abuild/"
+cp "$ABUILD_KEYS/abuild.rsa.pub" "$BUILD_DIR/.abuild/"
+
+chown -R 1000:1000 "$BUILD_DIR"
+chmod 600 "$BUILD_DIR/.abuild/abuild.rsa"
+chmod 644 "$BUILD_DIR/.abuild/abuild.rsa.pub"
+
 export ABUILD_NOCOLOR=1
 export ABUILD_NOLOG=1
-
-BUILD_HOME="$(getent passwd build | cut -d: -f6)"
-mkdir -p "$BUILD_HOME/.abuild"
-cp "$ABUILD_KEYS/abuild.rsa" "$BUILD_HOME/.abuild/"
-cp "$ABUILD_KEYS/abuild.rsa.pub" "$BUILD_HOME/.abuild/"
-chown -R build:abuild "$BUILD_HOME/.abuild"
-chmod 600 "$BUILD_HOME/.abuild/abuild.rsa"
-chmod 644 "$BUILD_HOME/.abuild/abuild.rsa.pub"
 
 echo "=== Updating Alpine package index ==="
 apk update
@@ -45,12 +47,12 @@ for apkbuild in "$APORTS_DIR"/*/*/APKBUILD; do
         pkgdir="$(dirname "$apkbuild")"
         pkgname="$(basename "$pkgdir")"
         echo "Building $pkgname..."
-        sudo -u build sh -c "cd $pkgdir && abuild checksum 2>/dev/null || true"
-        sudo -u build sh -c "cd $pkgdir && abuild -r" 2>&1 || echo "Failed to build $pkgname"
+        su -s /bin/sh build -c "cd $pkgdir && abuild checksum 2>/dev/null || true"
+        su -s /bin/sh build -c "cd $pkgdir && abuild -r" 2>&1 || echo "Failed to build $pkgname"
     fi
 done
 
-for apk in "$BUILD_HOME"/packages/aarch64/*.apk; do
+for apk in "$BUILD_DIR"/packages/aarch64/*.apk; do
     if [ -f "$apk" ]; then
         cp "$apk" "$OUTPUT_DIR/apk/"
         echo "Copied: $apk"
