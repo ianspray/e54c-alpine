@@ -53,8 +53,8 @@ fetch_uboot() {
     case "$BOARD" in
         rock5b|rock5c|rock5e)
             uboot_name="u-boot"
-            UBOOT_REPO="https://github.com/radxa-uboot/u-boot"
-            UBOOT_BRANCH="stable-2024.02-rk35xx"
+            UBOOT_REPO="https://github.com/radxa/u-boot"
+            UBOOT_BRANCH="next-dev-v2026.01"
             echo "Fetching Radxa U-Boot"
             if [ ! -d "$UBOOT_SHARED_DIR/$uboot_name" ]; then
                 mkdir -p "$UBOOT_SHARED_DIR"
