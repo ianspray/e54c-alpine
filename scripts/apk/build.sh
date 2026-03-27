@@ -24,6 +24,14 @@ mkdir -p "$OUTPUT_DIR/apk"
 if [ "$(id -u)" = "0" ]; then
     mkdir -p /build/.abuild
     chown -R build:build /build
+
+    if [ ! -f /build/.abuild/abuild.rsa ]; then
+        echo "=== Generating APK signing keys ==="
+        ssh-keygen -t rsa -b 4096 -m PEM -f /build/.abuild/abuild.rsa -N "" -C "build@alpian"
+    fi
+
+    cp /build/.abuild/abuild.rsa.pub /etc/apk/keys/
+
     exec su - build -c "PACKAGES_DIR=$PACKAGES_DIR OUTPUT_DIR=$OUTPUT_DIR CACHE_DIR=$CACHE_DIR /build/scripts/apk/build.sh"
 fi
 
@@ -31,12 +39,12 @@ export ABUILD_NOCOLOR=1
 mkdir -p ~/.abuild
 
 if [ ! -f ~/.abuild/abuild.rsa ]; then
-    echo "=== Generating APK signing keys ==="
-    ssh-keygen -t rsa -b 4096 -m PEM -f ~/.abuild/abuild.rsa -N "" -C "build@alpian"
+    echo "=== Copying APK signing keys ==="
+    cp /build/.abuild/abuild.rsa ~/.abuild/
+    cp /build/.abuild/abuild.rsa.pub ~/.abuild/
+    chmod 600 ~/.abuild/abuild.rsa
+    chmod 644 ~/.abuild/abuild.rsa.pub
 fi
-
-cp ~/.abuild/abuild.rsa.pub /etc/apk/keys/ 2>/dev/null || true
-cp ~/.abuild/abuild.rsa ~/.abuild/abuild.rsa.pub /build/.abuild/ 2>/dev/null || true
 
 echo "PACKAGER_PRIVKEY=$HOME/.abuild/abuild.rsa" > ~/.abuild/abuild.conf
 echo 'CHOST="aarch64-alpine-linux-musl"' >> ~/.abuild/abuild.conf
