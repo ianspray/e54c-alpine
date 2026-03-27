@@ -21,22 +21,42 @@ echo "=== Building custom APK packages ==="
 mkdir -p "$PACKAGES_DIR"
 mkdir -p "$OUTPUT_DIR/apk"
 
+if [ "$(id -u)" = "0" ]; then
+    mkdir -p /build/.abuild
+    chown -R build:build /build
+    exec su - build -c "PACKAGES_DIR=$PACKAGES_DIR OUTPUT_DIR=$OUTPUT_DIR CACHE_DIR=$CACHE_DIR /build/scripts/apk/build.sh"
+fi
+
+export ABUILD_NOCOLOR=1
+mkdir -p ~/.abuild
+
+if [ ! -f ~/.abuild/abuild.rsa ]; then
+    echo "=== Generating APK signing keys ==="
+    ssh-keygen -t rsa -b 4096 -m PEM -f ~/.abuild/abuild.rsa -N "" -C "build@alpian"
+    cp ~/.abuild/abuild.rsa.pub /etc/apk/keys/
+fi
+
+cp ~/.abuild/abuild.rsa ~/.abuild/abuild.rsa.pub /build/.abuild/ 2>/dev/null || true
+
+echo "PACKAGER_PRIVKEY=$HOME/.abuild/abuild.rsa" > ~/.abuild/abuild.conf
+echo 'CHOST="aarch64-alpine-linux-musl"' >> ~/.abuild/abuild.conf
+
 setup_alpine_sdk() {
     if [ ! -d "$PACKAGES_DIR"/keychain ]; then
         mkdir -p "$PACKAGES_DIR"/keychain
         cd "$PACKAGES_DIR"/keychain
         
-        wget -q "https://github.com/rdelaage/keychain/archive/refs/tags/v2.8.5.tar.gz" -O keychain-2.8.5.tar.gz
+        wget -q "https://github.com/funtoo/keychain/archive/refs/tags/2.9.0.tar.gz" -O keychain-2.9.0.tar.gz
         
         cat > APKBUILD << 'APKBUILD_EOF'
 pkgname=keychain
-pkgver=2.8.5
+pkgver=2.9.0
 pkgrel=0
 pkgdesc="SSH and GPG agent"
-url="https://github.com/rdelaage/keychain"
+url="https://github.com/funtoo/keychain"
 license="GPL2"
 arch="aarch64"
-source="keychain-$pkgver.tar.gz::https://github.com/rdelaage/keychain/archive/refs/tags/v$pkgver.tar.gz"
+source="keychain-$pkgver.tar.gz::https://github.com/funtoo/keychain/archive/refs/tags/$pkgver.tar.gz"
 depends="openssl"
 
 build() {
@@ -66,30 +86,6 @@ build_apk() {
         fi
     fi
 }
-
-if [ "$(id -u)" = "0" ]; then
-    mkdir -p /build/.abuild
-    chown -R build:build /build
-
-    if [ ! -f /build/.abuild/abuild.rsa ]; then
-        echo "=== Generating APK signing keys ==="
-        ssh-keygen -t rsa -b 4096 -m PEM -f /build/.abuild/abuild.rsa -N "" -C "build@alpian"
-    fi
-    cp /build/.abuild/abuild.rsa.pub /etc/apk/keys/
-
-    exec su - build -c "PACKAGES_DIR=$PACKAGES_DIR OUTPUT_DIR=$OUTPUT_DIR CACHE_DIR=$CACHE_DIR /build/scripts/apk/build.sh"
-fi
-
-export ABUILD_NOCOLOR=1
-mkdir -p ~/.abuild
-
-if [ ! -f ~/.abuild/abuild.rsa ]; then
-    echo "=== Generating APK signing keys ==="
-    ssh-keygen -t rsa -b 4096 -m PEM -f ~/.abuild/abuild.rsa -N "" -C "build@alpian"
-fi
-
-echo "PACKAGER_PRIVKEY=$HOME/.abuild/abuild.rsa" > ~/.abuild/abuild.conf
-echo 'CHOST="aarch64-alpine-linux-musl"' >> ~/.abuild/abuild.conf
 
 setup_alpine_sdk
 
