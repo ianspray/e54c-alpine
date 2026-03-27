@@ -21,6 +21,52 @@ echo "=== Building custom APK packages ==="
 mkdir -p "$PACKAGES_DIR"
 mkdir -p "$OUTPUT_DIR/apk"
 
+setup_alpine_sdk() {
+    if [ ! -d "$PACKAGES_DIR"/keychain ]; then
+        mkdir -p "$PACKAGES_DIR"/keychain
+        cd "$PACKAGES_DIR"/keychain
+        
+        wget -q "https://github.com/rdelaage/keychain/archive/refs/tags/v2.8.5.tar.gz" -O keychain-2.8.5.tar.gz
+        
+        cat > APKBUILD << 'APKBUILD_EOF'
+pkgname=keychain
+pkgver=2.8.5
+pkgrel=0
+pkgdesc="SSH and GPG agent"
+url="https://github.com/rdelaage/keychain"
+license="GPL2"
+arch="aarch64"
+source="keychain-$pkgver.tar.gz::https://github.com/rdelaage/keychain/archive/refs/tags/v$pkgver.tar.gz"
+depends="openssl"
+
+build() {
+    ./configure --prefix=/usr --sysconfdir=/etc
+    make
+}
+
+package() {
+    make DESTDIR="$pkgdir" install
+}
+APKBUILD_EOF
+
+        abuild checksum
+    fi
+}
+
+build_apk() {
+    local pkgname="$1"
+    local pkgdir="$PACKAGES_DIR/$pkgname"
+    
+    if [ -d "$pkgdir" ]; then
+        cd "$pkgdir"
+        if [ -f "APKBUILD" ]; then
+            echo "Building $pkgname APK..."
+            abuild -r
+            cp "$pkgdir"/packages/aarch64/*.apk "$OUTPUT_DIR/apk/" 2>/dev/null || true
+        fi
+    fi
+}
+
 if [ "$(id -u)" = "0" ]; then
     mkdir -p /build/.abuild
     chown -R build:build /build
@@ -44,51 +90,6 @@ fi
 
 echo "PACKAGER_PRIVKEY=$HOME/.abuild/abuild.rsa" > ~/.abuild/abuild.conf
 echo 'CHOST="aarch64-alpine-linux-musl"' >> ~/.abuild/abuild.conf
-
-setup_alpine_sdk() {
-    if [ ! -d "$PACKAGES_DIR"/keychain ]; then
-        mkdir -p "$PACKAGES_DIR"/keychain
-        cd "$PACKAGES_DIR"/keychain
-        
-        wget -q "https://github.com/rdelaage/keychain/archive/refs/tags/v2.8.5.tar.gz" -O keychain-2.8.5.tar.gz
-        sha512sum keychain-2.8.5.tar.gz > keychain-2.8.5.tar.gz.sha512
-        
-        cat > APKBUILD << 'APKBUILD_EOF'
-pkgname=keychain
-pkgver=2.8.5
-pkgrel=0
-pkgdesc="SSH and GPG agent"
-url="https://github.com/rdelaage/keychain"
-license="GPL2"
-arch="aarch64"
-source="keychain-$pkgver.tar.gz::https://github.com/rdelaage/keychain/archive/refs/tags/v$pkgver.tar.gz"
-depends="openssl"
-
-build() {
-    ./configure --prefix=/usr --sysconfdir=/etc
-    make
-}
-
-package() {
-    make DESTDIR="$pkgdir" install
-}
-APKBUILD_EOF
-    fi
-}
-
-build_apk() {
-    local pkgname="$1"
-    local pkgdir="$PACKAGES_DIR/$pkgname"
-    
-    if [ -d "$pkgdir" ]; then
-        cd "$pkgdir"
-        if [ -f "APKBUILD" ]; then
-            echo "Building $pkgname APK..."
-            abuild -r
-            cp "$pkgdir"/packages/aarch64/*.apk "$OUTPUT_DIR/apk/" 2>/dev/null || true
-        fi
-    fi
-}
 
 setup_alpine_sdk
 
