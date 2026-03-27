@@ -47,6 +47,8 @@ RUN adduser -D build && addgroup build abuild \
     && chown -R build:build /var/log/abuild /home/build
 
 COPY config/*.conf /build/config/
+COPY scripts/ /build/scripts/
+RUN chmod +x /build/scripts/apk/*.sh /build/scripts/fetch/*.sh /build/scripts/uboot/*.sh /build/scripts/kernel/*.sh /build/scripts/root/*.sh /build/scripts/image/*.sh
 
 VOLUME ["/var/cache/distfiles", "/var/cache/apkcache", "/output"]
 
