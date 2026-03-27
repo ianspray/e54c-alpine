@@ -42,7 +42,9 @@ RUN mkdir -p /var/cache/distfiles /var/cache/apkcache /build/config \
     && make install \
     && rm -rf /tmp/genimage
 
-RUN adduser -D build && addgroup build abuild
+RUN adduser -D build && addgroup build abuild \
+    && mkdir -p /var/log/abuild /home/build/.abuild \
+    && chown -R build:build /var/log/abuild /home/build
 
 COPY config/*.conf /build/config/
 

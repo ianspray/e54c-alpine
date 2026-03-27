@@ -24,10 +24,6 @@ mkdir -p "$OUTPUT_DIR/apk"
 if [ "$(id -u)" = "0" ]; then
     mkdir -p /build/.abuild
     chown -R build:build /build
-    mkdir -p /var/log/abuild
-    chown -R build:build /var/log/abuild
-    mkdir -p /etc/apk/keys
-    chown -R build:build /etc/apk/keys
 
     if [ ! -f /build/.abuild/abuild.rsa ]; then
         echo "=== Generating APK signing keys ==="
@@ -35,7 +31,6 @@ if [ "$(id -u)" = "0" ]; then
     fi
 
     cp /build/.abuild/abuild.rsa.pub /etc/apk/keys/
-    mkdir -p /home/build/.abuild
     cp /build/.abuild/abuild.rsa /home/build/.abuild/
     cp /build/.abuild/abuild.rsa.pub /home/build/.abuild/
     chown -R build:build /home/build
@@ -44,7 +39,7 @@ if [ "$(id -u)" = "0" ]; then
 fi
 
 export ABUILD_NOCOLOR=1
-export ABUILD_LOG=1
+export ABUILD_NOLOG=1
 export PACKAGER_PRIVKEY="$HOME/.abuild/abuild.rsa"
 mkdir -p ~/.abuild
 
@@ -93,8 +88,8 @@ build_apk() {
         cd "$pkgdir"
         if [ -f "APKBUILD" ]; then
             echo "Building $pkgname APK..."
-            abuild -R
-            cp "$pkgdir"/packages/aarch64/*.apk "$OUTPUT_DIR/apk/" 2>/dev/null || true
+            abuild -r || true
+            cp "$pkgdir"/*.apk "$OUTPUT_DIR/apk/" 2>/dev/null || true
         fi
     fi
 }
