@@ -12,8 +12,8 @@ if [ -f "$BOARD_CONF" ]; then
 fi
 
 ALPINE_VERSION="${ALPINE_VERSION:-3.23.3}"
-KERNEL_REPO="${KERNEL_REPO:-https://github.com/Joshua-Riek/linux-rockchip}"
-KERNEL_BRANCH="${KERNEL_BRANCH:-main}"
+KERNEL_REPO="${KERNEL_REPO:-https://github.com/radxa/kernel}"
+KERNEL_BRANCH="${KERNEL_BRANCH:-linux-6.1-stan-rkr5.1}"
 
 echo "=== Fetching assets for board: $BOARD ==="
 
