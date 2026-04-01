@@ -1,0 +1,46 @@
+#!/sbin/openrc-run
+# SPDX-License-Identifier: MIT
+
+name="e54c-ntp-sync"
+description="Run one-shot NTP sync in background"
+
+depend() {
+  need networking
+  before sshd
+}
+
+start() {
+  ebegin "Triggering background NTP sync"
+  (
+    if [ -f /run/e54c-ntp-sync.done ]; then
+      exit 0
+    fi
+    : "${servers:=pool.ntp.org}"
+    : "${max_wait:=60}"
+    : "${retry_interval:=5}"
+
+    ntp_cmd="$(command -v ntpd || true)"
+    if [ -n "$ntp_cmd" ]; then
+      ntp_invoke="$ntp_cmd"
+    else
+      ntp_invoke="/bin/busybox ntpd"
+    fi
+
+    waited=0
+    while [ "$waited" -lt "$max_wait" ]; do
+      if [ -s /etc/resolv.conf ] && grep -q "nameserver" /etc/resolv.conf; then
+        break
+      fi
+      sleep "$retry_interval"
+      waited=$((waited + retry_interval))
+    done
+
+    args=""
+    for s in $servers; do
+      args="$args -p $s"
+    done
+    sh -c "$ntp_invoke -q -n $args >/run/e54c-ntp-sync.log 2>&1 || true"
+    touch /run/e54c-ntp-sync.done
+  ) &
+  eend 0
+}

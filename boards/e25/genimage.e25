@@ -1,0 +1,64 @@
+image sdcard.img {
+    hdimage {
+        partition-table-type = "mbr"
+        align = 512   # one sector
+    }
+
+    # idbloader.img at sector 64 (32KB)
+    partition idbloader {
+        image = "idbloader.img"
+        offset = 64s
+        size = 16320s
+        partition-type = 0x00  # Raw partition
+    }
+
+    # u-boot.itb at sector 16384 (8MB)
+    partition uboot {
+        image = "u-boot.itb"
+        offset = 16384s
+        size = 8191s
+        partition-type = 0x00
+    }
+
+    # trust.img at sector 24576 (12MB)
+    partition trust {
+        image = "trust.img"
+        offset = 24576s
+        size = 8191s
+        partition-type = 0x00
+    }
+
+    # FAT32 boot partition at sector 32768 (16MB)
+    partition boot {
+        image = "boot.vfat"
+        offset = 32768s
+        size = 64M
+        partition-type = 0xC  # FAT32
+    }
+
+    # Root filesystem
+    partition root {
+        image = "rootfs.ext4"
+        offset = 128M
+        size = 2G
+        partition-type = 0x83  # Linux
+    }
+}
+
+image boot.vfat {
+  vfat {
+    files = {
+      "boot/vmlinuz",
+      "boot/initramfs",
+      "boot/extlinux/extlinux.conf"
+    }
+  }
+  size = 256M
+}
+
+image rootfs.ext4 {
+  ext4 {
+    label = "rootfs"
+  }
+  size = 1G
+}

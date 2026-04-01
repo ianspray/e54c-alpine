@@ -1,0 +1,152 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ian Spray
+
+APKFETCH_PATH   := tools/apkfetch
+APKFETCH        := $(APKFETCH_PATH)/apkfetch
+VERSION         ?= v3.23
+ARCH            ?= aarch64
+APK_CACHE_DIR   ?= ./cache/apk-cache
+LINUX_CACHE_DIR ?= ./cache/linux
+UBOOT_CACHE_DIR ?= ./cache/u-boot
+SCAN_DIRS       ?= .
+
+BOARD		?= e25
+
+include boards/$(BOARD)/$(BOARD).env
+
+.PHONY: populate-cache build-tools image build build-linx build-uboot build-rootfs build-bootfs fetch fetch-apk fetch-linux fetch-uboot clean index help
+
+$(APKFETCH):
+	$(MAKE) -C $(APKFETCH_PATH)
+
+# Scan Containerfiles and shell scripts in SCAN_DIRS, resolve deps, download .apk files.
+fetch-apk: $(APKFETCH)
+	mkdir -p $(APK_CACHE_DIR); \
+	./$(APKFETCH) \
+		-version $(VERSION) \
+		-arch    $(ARCH) \
+		-cache   $(APK_CACHE_DIR) \
+		-v \
+		$(SCAN_DIRS)
+
+populate-cache: fetch-apk
+	podman volume create apk-cache 2>/dev/null || true
+	podman run --rm \
+		-v apk-cache:/dest \
+		-v $(CURDIR)/cache/apk-cache:/src:ro \
+		alpine:3.23.3 \
+		cp -r /src/. /dest/
+
+build-tools: $(APKFETCH) fetch-apk populate-cache
+	podman build \
+	-f tools/Containerfile \
+	-t alpian-builder .
+
+# - - - - - -
+
+fetch-linux:
+	mkdir -p ./$(LINUX_CACHE_DIR); \
+	podman run --rm -it \
+	-v ./$(LINUX_CACHE_DIR):/work \
+	alpian-builder \
+	/bin/sh -c 'if [ -d $(KERNEL_DIR)/kernel ]; then \
+		git -C $(KERNEL_DIR)/kernel fetch origin && \
+		git -C $(KERNEL_DIR)/kernel reset --hard origin/$(KERNEL_BRANCH)  && \
+		git -C $(KERNEL_DIR)/kernel clean -fdx; \
+	else \
+		git clone --branch $(KERNEL_BRANCH) $(KERNEL_REPO) $(KERNEL_DIR); \
+	fi'
+
+fetch-uboot:
+ifdef UBOOT_REPO
+	mkdir -p ./$(UBOOT_CACHE_DIR); \
+	podman run --rm -it \
+	-v ./$(UBOOT_CACHE_DRR):/work \
+	alpian-builder \
+	/bin/sh -c 'if [ -d $(UBOOT_DIR)/u-boot ]; then \
+		git -C $(UBOOT_DIR)/u-boot fetch origin && \
+		git -C $(UBOOT_DIR)/u-boot reset --hard $(UBOOT_BRANCH)  && \
+		git -C $(UBOOT_DIR)/u-boot clean -fdx; \
+	else \
+		git clone --branch $(UBOOT_BRANCH) $(UBOOT_REPO) $(UBOOT_DIR)/u-boot; \
+	fi'
+else
+	@echo "UBOOT_REPO not set - skipping"
+endif
+
+# FIXME: this should also depend upon build-tools but only when that image creation
+# can be skipped by the make rules when nothing has changed in the apk cache, but
+# that may end up being circular in that the container image is needed for both
+# fetch-linux and fetch-uboot, but the build depends upon fetch-apk
+fetch: fetch-apk fetch-linux fetch-uboot
+
+# - - - - - -
+
+build-linux: build-tools
+	podman run --rm -it \
+	-v ./cache:/cache \
+	-v ./boards:/boards:ro \
+	-v ./build:/build \
+	-v ./out:/out \
+	alpian-builder \
+	sh alpian-kernel.sh
+
+build-uboot: build-tools
+	podman run --rm -it \
+	-v ./cache:/cache \
+	-v ./boards:/boards:ro \
+	-v ./build:/build \
+	-v ./out:/out \
+	alpian-builder \
+	sh alpian-uboot.sh
+
+# gather the assets required in order to be able to build a disc image, but
+# do not create the final bootable/flashable output binary itself
+build: build-tools build-linux build-uboot
+	podman run --rm -it \
+	-v ./cache:/cache \
+	-v ./boards:/boards:ro \
+	-v ./build:/build \
+	-v ./out:/out \
+	-e BOARD=${BOARD} \
+	alpian-builder \
+	sh alpian-build.sh
+
+# assemble the rootfs and bootfs into a fucntional image for a physical device
+image: build-tools build
+	podman run --rm -it \
+	-v ./cache:/cache \
+	-v ./rootfs:/rootfs \
+	-v ./bootfs:/bootfs \
+	-v ./out:/out \
+	alpian-builder \
+	sh alpian-image.sh
+
+# - - - - - -
+
+# tidy up the build tooling
+clean:
+	rm $(APKFETCH); \
+	podman rmi alpian-builder
+
+# tidy up both the build tooling and all local caches (ie: revert to a clean
+# 'just checked out' state)
+distclean: clean
+	rm -rf $(APK_CACHE_DIR) $(LINUX_CACHE_DIR) $(UBOOT_CACHE_DIR)
+
+# FIXME: ALL OF THE HELP TEXT IS INCORRECT
+# try to offer guidance without needing a text editor
+help:
+	@echo "Targets:"
+	@echo "  make build        compile apkfetch"
+	@echo "  make fetch        scan + download packages to $(CACHE_DIR)"
+	@echo "  make clean        remove binary and cache"
+	@echo ""
+	@echo "Variables:"
+	@echo "  VERSION=$(VERSION)   Alpine version"
+	@echo "  ARCH=$(ARCH)       target architecture"
+	@echo "  CACHE_DIR=$(CACHE_DIR)  output directory"
+	@echo "  SCAN_DIRS=$(SCAN_DIRS)   paths to scan"
+	@echo ""
+	@echo "Example:"
+	@echo "  make fetch VERSION=v3.23 SCAN_DIRS='./services/api ./services/worker'"

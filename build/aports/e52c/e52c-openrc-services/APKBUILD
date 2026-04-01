@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: MIT
+# Maintainer: IWS <iws@toothless.local>
+pkgname=e52c-openrc-services
+pkgver=0.3.0
+pkgrel=0
+pkgdesc="E52C OpenRC helper services for diskless and serial operation"
+url="https://example.invalid/e52c-alpian"
+arch="noarch"
+license="MIT"
+depends="openrc busybox iproute2"
+replaces="busybox"
+source="
+  e52c-apply-dev-perms.sh
+  e52c-dev-perms.initd
+  e52c-dev-perms.confd
+  show-net-addrs.sh
+  show-net-addrs.initd
+  show-net-addrs.confd
+  e52c-ntp-sync.initd
+  e52c-ntp-sync.confd
+  e52c-boot-mode.sh
+  e52c-bootmode-oneshot-apply.sh
+  e52c-bootmode-oneshot.initd
+  e52c-root-mode.initd
+  e52c-udhcpc.sh
+  e52c-net-mac-sort.sh
+  e52c-net-mac-sort.initd
+"
+builddir="$srcdir"
+options="!check"
+
+package() {
+  install -Dm755 "$srcdir"/e52c-apply-dev-perms.sh "$pkgdir"/usr/sbin/e52c-apply-dev-perms
+  install -Dm755 "$srcdir"/show-net-addrs.sh "$pkgdir"/usr/sbin/show-net-addrs
+  install -Dm755 "$srcdir"/e52c-boot-mode.sh "$pkgdir"/usr/sbin/e52c-boot-mode
+  install -Dm755 "$srcdir"/e52c-bootmode-oneshot-apply.sh "$pkgdir"/usr/sbin/e52c-bootmode-oneshot-apply
+
+  install -Dm755 "$srcdir"/e52c-dev-perms.initd "$pkgdir"/etc/init.d/e52c-dev-perms
+  install -Dm644 "$srcdir"/e52c-dev-perms.confd "$pkgdir"/etc/conf.d/e52c-dev-perms
+
+  install -Dm755 "$srcdir"/show-net-addrs.initd "$pkgdir"/etc/init.d/show-net-addrs
+  install -Dm644 "$srcdir"/show-net-addrs.confd "$pkgdir"/etc/conf.d/show-net-addrs
+
+  install -Dm755 "$srcdir"/e52c-ntp-sync.initd "$pkgdir"/etc/init.d/e52c-ntp-sync
+  install -Dm644 "$srcdir"/e52c-ntp-sync.confd "$pkgdir"/etc/conf.d/e52c-ntp-sync
+
+  install -Dm755 "$srcdir"/e52c-bootmode-oneshot.initd "$pkgdir"/etc/init.d/e52c-bootmode-oneshot
+  install -Dm755 "$srcdir"/e52c-root-mode.initd "$pkgdir"/etc/init.d/e52c-root-mode
+
+  install -Dm755 "$srcdir"/e52c-udhcpc.sh "$pkgdir"/usr/share/udhcpc/default.script
+  install -Dm755 "$srcdir"/e52c-net-mac-sort.sh "$pkgdir"/usr/sbin/e52c-net-mac-sort
+  install -Dm755 "$srcdir"/e52c-net-mac-sort.initd "$pkgdir"/etc/init.d/e52c-net-mac-sort
+}
+
+sha512sums="
+bae24b3f504fad19bc09a022689a3d33d34e7164bd429252276bff785a9a2799e24768a2b91a0c008e5132f5c1756e228e87e6b9c43c343e2ebe911d20cbc647  e52c-apply-dev-perms.sh
+afc15c4c25024342d4dd33e234e43b806e6aee2948c963b95be0eca531d553b70d35eaedef16d21aaf056cf48f7ee1d9d988775aeab44f17441d31c09f49fac7  e52c-dev-perms.initd
+72edc356f1b1e58c56c183f71868641e014cb8ceac9d89a755e7098b6217e4e570a0b45c3816f3b9dafeb08a4040fa78c257749d7abf0e58dacda3c2aa3b31b4  e52c-dev-perms.confd
+42c70258c6bb43130713228b992e88ee174a66f17ae483bc360ab873f1572fe8f07ff63593b7f605a068df0c7eb0c67122a4fcf31ea56f41d7e4f5855899a361  show-net-addrs.sh
+46c1960ceeb9d36ab11cbdbb2e299f8a8625b478911b7b2281f60323ab844e10fc4234ca73866cae8e4efbbed1e7c28aa75b161467d20754f1c342893a38de6a  show-net-addrs.initd
+73b2c56a39400d91a4d827544e5c5bffc5754eefef57812135158a1b7554bf54735759a60d5cf8dbc24f467cc9d0eb017e32a70930359e6d4eb0d7eea3c18f4b  show-net-addrs.confd
+0426fbecee8646f9aabb5d9d0759337a224ba66919dab2a96ffab3d6699ae26129e92e0053a95794fb229dea3caf662baa6f9bef2dc693eca28903c5b35e5b04  e52c-ntp-sync.initd
+fbfce6052910c570c4d3693edccedee07b6a4d3009d0761693c41fe373e503471245b468869eb049d498b89c272d42a7993c9fa6d74a5ecd5688f59b882a66dc  e52c-ntp-sync.confd
+fee139bc5f53ea451acf6fce8eed01e6af2b092c1076e3c85a165be2fcea79fd2cfe9101f7a3e67b3bd92721b2d9a4b520bb1dfa5cb1d74a80d65b2997c5cc98  e52c-boot-mode.sh
+9dd16b1423c9a8a14f6b07a94de35fe5a774c4bdfb9ae9eb004e32f740d392deeedb80f836665d3da50e9fc8c402d604304d4260fe199494cc9c65e9e9ca0eb9  e52c-bootmode-oneshot-apply.sh
+66147472f508045d1d3508624cc820429490d66b0e719fed5bedc3018c5221610ebe072667f31d8646f3721bf8e06bbd8263554ce721d289e3ebc0a2fd3e296c  e52c-bootmode-oneshot.initd
+7b46ffea1d101c88ff44c0ecbb934f93badaab1a2be2dbd01104b55e07c8740fb2425d05f2c7f18df65c04655cbc91828b44eb14b74bbda524c9ba5339e9fe11  e52c-root-mode.initd
+2a9f3e5309dee0ae54db2a7ec72c06a61437b58f34138a5d4835bc9a4bad6db105929065ec7a5ac284c4865e91eb0963929541b521c7453a5691f821ed90a434  e52c-udhcpc.sh
+d5f6ff42f5a1ad3fe2dd542dcec090a70965690097c74da922c4809fd6428e06cc25f098e99feaa1cbab235a2d1681aa23f83e1c8e06983dcd64d13a2ee3e330  e52c-net-mac-sort.sh
+95784294987c0af7284f4f992ee0e98869da36af4b7234a8cdef8f5258b8a7c6b11763bb4a80b3ea49e94d1dc5af0ba65779de120f014ad208f3c53c6f7477ac  e52c-net-mac-sort.initd
+"

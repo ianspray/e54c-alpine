@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+# Maintainer: IWS <iws@toothless.local>
+pkgname=rpi4-usb-updater-services
+pkgver=0.1.0
+pkgrel=0
+pkgdesc="RPI4 USB updater OpenRC service and update runner"
+url="https://example.invalid/rpi4-alpian"
+arch="noarch"
+license="MIT"
+depends="openrc zstd"
+source="
+  rpi4-run-usb-update.sh
+  rpi4-usb-nvme-update.initd
+  rpi4-usb-nvme-update.confd
+"
+builddir="$srcdir"
+options="!check"
+
+package() {
+  install -Dm755 "$srcdir"/rpi4-run-usb-update.sh "$pkgdir"/usr/sbin/rpi4-run-usb-update
+  install -Dm755 "$srcdir"/rpi4-usb-nvme-update.initd "$pkgdir"/etc/init.d/rpi4-usb-nvme-update
+  install -Dm644 "$srcdir"/rpi4-usb-nvme-update.confd "$pkgdir"/etc/conf.d/rpi4-usb-nvme-update
+}
+
+sha512sums="
+828b5b7c17b43306143f72ded739b0677ff13d44820892d0b91e289abb8b202f59f14c2caae4dc897e665e4d840c669d65ff569cfc5d8a4c044b7792d98fd104  rpi4-run-usb-update.sh
+e5cd51ef5c3f593bfb85ee07381ff13a910b737f4318859ed2536cadf3534934fe285da63c2658077bb85b853087a005779cb37288c5397ab5abd108edaebddc  rpi4-usb-nvme-update.initd
+37573f2d65f065aa19000bacd26d2014e352dd1c994082b08c007debb24d926ba54348e7313973b2447497ae3293e161f1932e017f84459432250dd52b1207a7  rpi4-usb-nvme-update.confd
+"

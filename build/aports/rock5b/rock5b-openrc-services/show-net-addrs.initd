@@ -1,0 +1,16 @@
+#!/sbin/openrc-run
+# SPDX-License-Identifier: MIT
+
+name="show-net-addrs"
+description="Show network addresses on console and login banner"
+
+depend() {
+  need networking
+  after sshd
+}
+
+start() {
+  ebegin "Updating login banner with network addresses"
+  /usr/sbin/show-net-addrs >/dev/null 2>&1 || true
+  eend 0
+}

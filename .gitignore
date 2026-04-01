@@ -1,0 +1,4 @@
+.DS_Store
+build/aports/*.rsa
+build/aports/*.pub
+tools/apkfetch/apkfetch

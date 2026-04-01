@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+# Maintainer: IWS <iws@toothless.local>
+pkgname=e25-usb-updater-services
+pkgver=0.1.0
+pkgrel=0
+pkgdesc="E25 updater OpenRC service and eMMC update runner"
+url="https://example.invalid/e25-alpian"
+arch="noarch"
+license="MIT"
+depends="openrc zstd"
+source="
+  e25-run-usb-update.sh
+  e25-usb-emmc-update.initd
+  e25-usb-emmc-update.confd
+"
+builddir="$srcdir"
+options="!check"
+
+package() {
+  install -Dm755 "$srcdir"/e25-run-usb-update.sh "$pkgdir"/usr/sbin/e25-run-usb-update
+  install -Dm755 "$srcdir"/e25-usb-emmc-update.initd "$pkgdir"/etc/init.d/e25-usb-emmc-update
+  install -Dm644 "$srcdir"/e25-usb-emmc-update.confd "$pkgdir"/etc/conf.d/e25-usb-emmc-update
+}
+
+sha512sums="
+5a8cb3a743f2f063db213cd9d62dd87ba4f68f55cb3e5bb79795ee0d5b8032b3bc957a4a0a35bd276361606495eb083e945e5b03d5fa8ec92345b1b25ba98799  e25-run-usb-update.sh
+7698aa6a53b95ec8d6902420abe17f94f8cc6d260c7e55fe2de15aa8c8c081dbad3f035c815065fd8afefdabf276e589e3f7d41f91249acc6e91eee434280f6c  e25-usb-emmc-update.initd
+145ef77083d03daad6c80744ee9d3a19ad78d0807027d082868851125e262f9c26221beb9d997ec8a6f04638df654a13b5c8c0f86b3b5c09f170abcb4bead1fe  e25-usb-emmc-update.confd
+"

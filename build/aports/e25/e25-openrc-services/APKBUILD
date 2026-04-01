@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: MIT
+# Maintainer: IWS <iws@toothless.local>
+pkgname=e25-openrc-services
+pkgver=0.2.0
+pkgrel=0
+pkgdesc="E25 OpenRC helper services for diskless and serial operation"
+url="https://example.invalid/e25-alpian"
+arch="noarch"
+license="MIT"
+depends="openrc busybox iproute2"
+source="
+  e25-apply-dev-perms.sh
+  e25-dev-perms.initd
+  e25-dev-perms.confd
+  show-net-addrs.sh
+  show-net-addrs.initd
+  show-net-addrs.confd
+  e25-ntp-sync.initd
+  e25-ntp-sync.confd
+  e25-boot-mode.sh
+  e25-bootmode-oneshot-apply.sh
+  e25-bootmode-oneshot.initd
+  e25-root-mode.initd
+  e25-udhcpc.sh
+  e25-net-mac-sort.sh
+  e25-net-mac-sort.initd
+"
+builddir="$srcdir"
+options="!check"
+
+package() {
+  install -Dm755 "$srcdir"/e25-apply-dev-perms.sh "$pkgdir"/usr/sbin/e25-apply-dev-perms
+  install -Dm755 "$srcdir"/show-net-addrs.sh "$pkgdir"/usr/sbin/show-net-addrs
+  install -Dm755 "$srcdir"/e25-boot-mode.sh "$pkgdir"/usr/sbin/e25-boot-mode
+  install -Dm755 "$srcdir"/e25-bootmode-oneshot-apply.sh "$pkgdir"/usr/sbin/e25-bootmode-oneshot-apply
+
+  install -Dm755 "$srcdir"/e25-dev-perms.initd "$pkgdir"/etc/init.d/e25-dev-perms
+  install -Dm644 "$srcdir"/e25-dev-perms.confd "$pkgdir"/etc/conf.d/e25-dev-perms
+
+  install -Dm755 "$srcdir"/show-net-addrs.initd "$pkgdir"/etc/init.d/show-net-addrs
+  install -Dm644 "$srcdir"/show-net-addrs.confd "$pkgdir"/etc/conf.d/show-net-addrs
+
+  install -Dm755 "$srcdir"/e25-ntp-sync.initd "$pkgdir"/etc/init.d/e25-ntp-sync
+  install -Dm644 "$srcdir"/e25-ntp-sync.confd "$pkgdir"/etc/conf.d/e25-ntp-sync
+
+  install -Dm755 "$srcdir"/e25-bootmode-oneshot.initd "$pkgdir"/etc/init.d/e25-bootmode-oneshot
+  install -Dm755 "$srcdir"/e25-root-mode.initd "$pkgdir"/etc/init.d/e25-root-mode
+
+  install -Dm755 "$srcdir"/e25-udhcpc.sh "$pkgdir"/usr/share/udhcpc/default.script
+  install -Dm755 "$srcdir"/e25-net-mac-sort.sh "$pkgdir"/usr/sbin/e25-net-mac-sort
+  install -Dm755 "$srcdir"/e25-net-mac-sort.initd "$pkgdir"/etc/init.d/e25-net-mac-sort
+}
+
+sha512sums="
+048d22a5ab6f6845ccb3e3a42834bc43911c28c1e5cb07cd316ce2a015c38ca49e80f9173ed6b25d28d6638636c61266b99a4cf1e7400ba22b78435fc2748d20  e25-apply-dev-perms.sh
+2e859b87182918bd3945fca9c2f23d2c836c499857ba4c2f719f322590ef5a9b3b7c826f4434048b13ea91222bfe802a8f3b12006f00906ea440af3b4ef331f7  e25-dev-perms.initd
+72edc356f1b1e58c56c183f71868641e014cb8ceac9d89a755e7098b6217e4e570a0b45c3816f3b9dafeb08a4040fa78c257749d7abf0e58dacda3c2aa3b31b4  e25-dev-perms.confd
+8a80fa1475045afef0be391db7986b7f8a6eaafef55ab402c9b68162e0dd85dc7509625e95b85e41927f08c4274f2352c16ba9abb0d382834fe5ee30e453e8c1  show-net-addrs.sh
+46c1960ceeb9d36ab11cbdbb2e299f8a8625b478911b7b2281f60323ab844e10fc4234ca73866cae8e4efbbed1e7c28aa75b161467d20754f1c342893a38de6a  show-net-addrs.initd
+ac6135f5f19d70717811edd64101c77460f23bcc36ddc0d1420e7204292d4c5a894a8a2c5dbf3058fde07a60fa4f019835a78908780a9ab004dd3a85d6fa210a  show-net-addrs.confd
+b2a9d50ed3364e155e9643cd4aab2e99742f7c7d7dc0aa83c82e3627c29da1e4c4a44053ed4f11e5bc2e7e5b79c6e93c2a2811dcece820d51c6641d63a751010  e25-ntp-sync.initd
+fbfce6052910c570c4d3693edccedee07b6a4d3009d0761693c41fe373e503471245b468869eb049d498b89c272d42a7993c9fa6d74a5ecd5688f59b882a66dc  e25-ntp-sync.confd
+43a3c0cf7b6082d8395bfd0d579c94047dfd6ef0820755c728fb21508d381d38ac932de07a2b746c1696c61b61bc6a7fe57d51fcfeed767318418d4ac4e397d6  e25-boot-mode.sh
+c4fb7210818a4dd9db4fc180ccb695c0eaf283a42cd65e09530c72372ef5b16da579dbdf96ff8e7ebf7fdd008e0bc5ed268ec6f4a9ef675c41cf31955be76b33  e25-bootmode-oneshot-apply.sh
+e9d4409947e01f83f450029f53e0e83c6fca314951dac5a9c7ef45b23338fd3565cba2730ed21bb91ed92c5002c76e8892d29065502020bbfc4be427055c0bae  e25-bootmode-oneshot.initd
+68bcafdd3202234c89f9fb3b4fda1f1cbbe3450c9a5e459f9c472e3281a7997519d00e27f8c8f98ab94093e7ca27f67cd79c70013eebbc484cefbc78b70f62f6  e25-root-mode.initd
+b53d22a7ec90f79e43b315f90c63ee7979bb5cb8079999bd79df114e6c46b71d7c46f69ef9c893504f76946a4a19f9d174124d59a676a9a778a9ea9cef8e006c  e25-udhcpc.sh
+9205a1b11a34a5b439681b83a8ca1793d1b0488605e09db5f231455f80f0fa233c7d252b90194a7111249209cb4b22fd7c865ce5593a8b66e75f60f9b221bb39  e25-net-mac-sort.sh
+e86c60ebb591f4ed648abbee458794c15c235ef8ceca39bc898f5df23fd56f1939f41089c5738a4687dd3b0777751d10eb1068f441b312b46302addbed1a88f4  e25-net-mac-sort.initd
+"

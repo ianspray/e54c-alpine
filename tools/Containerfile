@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ian Spray
+
+FROM alpine:3.23.3
+
+COPY cache/apk-cache /apk-cache
+
+RUN apk add --no-network --allow-untrusted \
+    --repository /apk-cache \
+    alpine-base \
+    alpine-sdk \
+    abuild \
+    mkinitfs \
+    genimage \
+    e2fsprogs \
+    dosfstools \
+    mtools \
+    busybox \
+    util-linux \
+    git \
+    rsync \
+    curl \
+    wget \
+    linux-lts
+
+RUN addgroup builder && \
+    adduser -h /home/builder -G builder -D builder
+
+WORKDIR /work
+
+CMD ["/bin/sh"]

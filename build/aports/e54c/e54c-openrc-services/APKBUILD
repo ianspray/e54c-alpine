@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: MIT
+# Maintainer: IWS <iws@toothless.local>
+pkgname=e54c-openrc-services
+pkgver=0.1.0
+pkgrel=0
+pkgdesc="E54C OpenRC helper services for diskless and serial operation"
+url="https://example.invalid/e54c-alpian"
+arch="noarch"
+license="MIT"
+depends="openrc busybox"
+source="
+  e54c-apply-dev-perms.sh
+  e54c-dev-perms.initd
+  e54c-dev-perms.confd
+  show-net-addrs.sh
+  show-net-addrs.initd
+  show-net-addrs.confd
+  e54c-ntp-sync.initd
+  e54c-ntp-sync.confd
+  e54c-boot-mode.sh
+  e54c-bootmode-oneshot-apply.sh
+  e54c-bootmode-oneshot.initd
+  e54c-root-mode.initd
+"
+builddir="$srcdir"
+options="!check"
+
+package() {
+  install -Dm755 "$srcdir"/e54c-apply-dev-perms.sh "$pkgdir"/usr/sbin/e54c-apply-dev-perms
+  install -Dm755 "$srcdir"/show-net-addrs.sh "$pkgdir"/usr/sbin/show-net-addrs
+  install -Dm755 "$srcdir"/e54c-boot-mode.sh "$pkgdir"/usr/sbin/e54c-boot-mode
+  install -Dm755 "$srcdir"/e54c-bootmode-oneshot-apply.sh "$pkgdir"/usr/sbin/e54c-bootmode-oneshot-apply
+
+  install -Dm755 "$srcdir"/e54c-dev-perms.initd "$pkgdir"/etc/init.d/e54c-dev-perms
+  install -Dm644 "$srcdir"/e54c-dev-perms.confd "$pkgdir"/etc/conf.d/e54c-dev-perms
+
+  install -Dm755 "$srcdir"/show-net-addrs.initd "$pkgdir"/etc/init.d/show-net-addrs
+  install -Dm644 "$srcdir"/show-net-addrs.confd "$pkgdir"/etc/conf.d/show-net-addrs
+
+  install -Dm755 "$srcdir"/e54c-ntp-sync.initd "$pkgdir"/etc/init.d/e54c-ntp-sync
+  install -Dm644 "$srcdir"/e54c-ntp-sync.confd "$pkgdir"/etc/conf.d/e54c-ntp-sync
+
+  install -Dm755 "$srcdir"/e54c-bootmode-oneshot.initd "$pkgdir"/etc/init.d/e54c-bootmode-oneshot
+  install -Dm755 "$srcdir"/e54c-root-mode.initd "$pkgdir"/etc/init.d/e54c-root-mode
+}
+
+sha512sums="
+bd7a0c639d1c39c26897cdfb605eaedf0b9fc24e963a12ffbfb5dca118800a33efe971f7a88955cfdbd7961e73f352a1ba1670a728f7a61ea8ecc16e6bd32430  e54c-apply-dev-perms.sh
+6cb97a8a9564edd66b50a8cfeef0d03a49ca41b82db09698de0ccd0f9cf7cc3ec031b2bc0b626ef417f472738e6c4b493ca485952e3162881c77b6ca926fcb16  e54c-dev-perms.initd
+72edc356f1b1e58c56c183f71868641e014cb8ceac9d89a755e7098b6217e4e570a0b45c3816f3b9dafeb08a4040fa78c257749d7abf0e58dacda3c2aa3b31b4  e54c-dev-perms.confd
+42c70258c6bb43130713228b992e88ee174a66f17ae483bc360ab873f1572fe8f07ff63593b7f605a068df0c7eb0c67122a4fcf31ea56f41d7e4f5855899a361  show-net-addrs.sh
+46c1960ceeb9d36ab11cbdbb2e299f8a8625b478911b7b2281f60323ab844e10fc4234ca73866cae8e4efbbed1e7c28aa75b161467d20754f1c342893a38de6a  show-net-addrs.initd
+73b2c56a39400d91a4d827544e5c5bffc5754eefef57812135158a1b7554bf54735759a60d5cf8dbc24f467cc9d0eb017e32a70930359e6d4eb0d7eea3c18f4b  show-net-addrs.confd
+a0e3b52a91c42692e09ae02b1ef54858b4774ca1ff75f5acf6a161ef459d6f226dff669445c106c82464b9fb536cfd1981e4b5f2488e02b424925117a5d0a32f  e54c-ntp-sync.initd
+fbfce6052910c570c4d3693edccedee07b6a4d3009d0761693c41fe373e503471245b468869eb049d498b89c272d42a7993c9fa6d74a5ecd5688f59b882a66dc  e54c-ntp-sync.confd
+02a3834e1d70a70ea350006683b44dbdb28e0920ea7b042e9f1c0850cf48af3b2208d26d3f263d140bbfecbed4cbd21a93d975239e49d31371888631fa5f9f50  e54c-boot-mode.sh
+c4fb7210818a4dd9db4fc180ccb695c0eaf283a42cd65e09530c72372ef5b16da579dbdf96ff8e7ebf7fdd008e0bc5ed268ec6f4a9ef675c41cf31955be76b33  e54c-bootmode-oneshot-apply.sh
+d1a170fdb50ee276b0e2ebb145fda1df89d0123258c7c2cc0f62216192b66daa19ab450b3f1222722fdf433a025a1004435673c8a8d239f187b19245563468f6  e54c-bootmode-oneshot.initd
+fc0cb36561cf058a04877f420eaf924546b9e039628a08dea24e011b0bfc060d6712be603a287a586ae4dbc0056f6aa9db2c2a1ca1306bb990f0886b77690a3d  e54c-root-mode.initd
+"

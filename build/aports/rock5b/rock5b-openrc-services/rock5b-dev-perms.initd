@@ -1,0 +1,16 @@
+#!/sbin/openrc-run
+# SPDX-License-Identifier: MIT
+
+name="rock5b-dev-perms"
+description="Apply custom device-node permissions for fixed peripherals"
+
+depend() {
+  need modules
+  before networking
+}
+
+start() {
+  ebegin "Applying custom device permissions"
+  /usr/sbin/rock5b-apply-dev-perms
+  eend 0
+}

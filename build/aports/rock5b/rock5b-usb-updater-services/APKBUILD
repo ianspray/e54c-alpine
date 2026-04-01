@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+# Maintainer: IWS <iws@toothless.local>
+pkgname=rock5b-usb-updater-services
+pkgver=0.1.0
+pkgrel=0
+pkgdesc="ROCK5B USB updater OpenRC service and update runner"
+url="https://example.invalid/rock5b-alpian"
+arch="noarch"
+license="MIT"
+depends="openrc zstd"
+source="
+  rock5b-run-usb-update.sh
+  rock5b-usb-nvme-update.initd
+  rock5b-usb-nvme-update.confd
+"
+builddir="$srcdir"
+options="!check"
+
+package() {
+  install -Dm755 "$srcdir"/rock5b-run-usb-update.sh "$pkgdir"/usr/sbin/rock5b-run-usb-update
+  install -Dm755 "$srcdir"/rock5b-usb-nvme-update.initd "$pkgdir"/etc/init.d/rock5b-usb-nvme-update
+  install -Dm644 "$srcdir"/rock5b-usb-nvme-update.confd "$pkgdir"/etc/conf.d/rock5b-usb-nvme-update
+}
+
+sha512sums="
+883492b1010af48b4ea82a711c704756d17b8ab624528eea55123566284a935724dd429ac5377528b67243f5d7121154240953efa1ddc93923405540fec53eb8  rock5b-run-usb-update.sh
+e09139b8bf5ebdc50c2c0fa5fc97f2a26970058d6a4c43ef19fb45b2f755d6fdc18498abab619cc21df3becae3e805bbe90860c532b90061abb85c9dac8c34df  rock5b-usb-nvme-update.initd
+b8737bd0e48c6ea57c21e23fb66806f2acf95673838a1f55c6eed88ee3deca2581bbfc008ee61221458a6f944b7ae3f4bfb36109c6a2beaae39ef3841074aa39  rock5b-usb-nvme-update.confd
+"

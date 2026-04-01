@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+# Maintainer: IWS <iws@toothless.local>
+pkgname=e52c-usb-updater-services
+pkgver=0.1.0
+pkgrel=0
+pkgdesc="E52C updater OpenRC service and eMMC update runner"
+url="https://example.invalid/e52c-alpian"
+arch="noarch"
+license="MIT"
+depends="openrc zstd"
+source="
+  e52c-run-usb-update.sh
+  e52c-usb-emmc-update.initd
+  e52c-usb-emmc-update.confd
+"
+builddir="$srcdir"
+options="!check"
+
+package() {
+  install -Dm755 "$srcdir"/e52c-run-usb-update.sh "$pkgdir"/usr/sbin/e52c-run-usb-update
+  install -Dm755 "$srcdir"/e52c-usb-emmc-update.initd "$pkgdir"/etc/init.d/e52c-usb-emmc-update
+  install -Dm644 "$srcdir"/e52c-usb-emmc-update.confd "$pkgdir"/etc/conf.d/e52c-usb-emmc-update
+}
+
+sha512sums="
+53208004ea0dede2febfab261b7e6c6629e7d63313e0ceb9ac10b0de464b84f5cc09524d56111a13d38aa4146de3a287d8971b41264c5e1da731b10ed2acff96  e52c-run-usb-update.sh
+e26374beb4b09a1756e5876949d76c9cb2249aecf1248598aa7faff60663ca8af87c23e4fd3f4dfc6a58cf54d63dad83991102dfdd3ae939314a67bce25f2771  e52c-usb-emmc-update.initd
+ba31d0f864557947c956d20103948e19a281ced3d3c07141ea81fdedb56c201a63821aa40cf5020e22b900d5736eb34675dac231045272848dbf20b48c1ae6ac  e52c-usb-emmc-update.confd
+"

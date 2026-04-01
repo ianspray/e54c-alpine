@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+# Maintainer: IWS <iws@toothless.local>
+pkgname=r3s-mac-services
+pkgver=0.2.0
+pkgrel=0
+pkgdesc="Deterministic Ethernet MAC assignment for NanoPi R3S"
+url="https://example.invalid/r3s-alpian"
+arch="noarch"
+license="MIT"
+depends="openrc busybox iproute2"
+source="
+  r3s-set-macs.sh
+  r3s-set-macs.initd
+  r3s-udhcpc.sh
+"
+builddir="$srcdir"
+options="!check"
+
+package() {
+  install -Dm755 "$srcdir"/r3s-set-macs.sh "$pkgdir"/usr/sbin/r3s-set-macs
+  install -Dm755 "$srcdir"/r3s-set-macs.initd "$pkgdir"/etc/init.d/r3s-set-macs
+  install -Dm755 "$srcdir"/r3s-udhcpc.sh "$pkgdir"/usr/share/udhcpc/default.script
+}
+
+sha512sums="
+a96e9af42e2496880080b0655401380641bcfa1cfccbd880c674cae8e591624358d7dfbb6b969e8db9c51f39067b872613631390200a403b78efdba79a2d1f95  r3s-set-macs.sh
+fd839b4c49034a1cc721b12ab958fb38163c4b84631242422226a206eca374ae523c279ffe9f3424ebf24f14fbd336164e8be0444512a4021bec87600affbb77  r3s-set-macs.initd
+428a3b8d7daf5d3dafc8660427ef1aaa45c9c37ed25e2411726248957d93a53e9428e4f03c0f480e7736b182cfa5f8eac228308dbcc694042bb4c235211a49d6  r3s-udhcpc.sh
+"

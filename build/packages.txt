@@ -1,0 +1,11 @@
+alpine-base
+openssh
+e2fsprogs
+tzdata
+xz
+zstd
+jq
+wget
+htop
+curl
+linux-lts

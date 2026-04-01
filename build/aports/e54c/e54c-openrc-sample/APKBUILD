@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+# Maintainer: IWS <iws@toothless.local>
+pkgname=e54c-openrc-sample
+pkgver=0.1.0
+pkgrel=0
+pkgdesc="Sample OpenRC service package for E54C image customization"
+url="https://example.invalid/alpian"
+arch="noarch"
+license="MIT"
+depends="openrc"
+source="
+  e54c-sample-hook.initd
+  e54c-sample-hook.confd
+  e54c-sample-hook.sh
+"
+builddir="$srcdir"
+options="!check"
+
+package() {
+  install -Dm755 "$srcdir"/e54c-sample-hook.initd "$pkgdir"/etc/init.d/e54c-sample-hook
+  install -Dm644 "$srcdir"/e54c-sample-hook.confd "$pkgdir"/etc/conf.d/e54c-sample-hook
+  install -Dm755 "$srcdir"/e54c-sample-hook.sh "$pkgdir"/usr/libexec/e54c-sample-hook
+}
+
+sha512sums="
+9572ec1bb62d7a82770837734b94b52fea1137265c56c8a326b616c230691e692c5ef0f93e8fd63391637d7a1c21e177504c52d17e1f10654a279c195522612a  e54c-sample-hook.initd
+b26d417c73ba2b80c9ced3a03725c9db0412e5eb902f7b642471ee13e2dea963e2ea4eade9405bba283d28434709669c581c5a0d03f5b4c46372b1b6c3f312c5  e54c-sample-hook.confd
+08dbb675e97a7c956ff7f75400c52bf3d50a809143e3cb93b78a27b05090edcec2f05d2d4123fa76f0a52e9161a40470d5506eae623c7c203db98ecfb64c5884  e54c-sample-hook.sh
+"

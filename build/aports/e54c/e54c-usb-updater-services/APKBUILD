@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: MIT
+# Maintainer: IWS <iws@toothless.local>
+pkgname=e54c-usb-updater-services
+pkgver=0.1.0
+pkgrel=0
+pkgdesc="E54C USB updater OpenRC service and update runner"
+url="https://example.invalid/e54c-alpian"
+arch="noarch"
+license="MIT"
+depends="openrc zstd"
+source="
+  e54c-run-usb-update.sh
+  e54c-usb-nvme-update.initd
+  e54c-usb-nvme-update.confd
+"
+builddir="$srcdir"
+options="!check"
+
+package() {
+  install -Dm755 "$srcdir"/e54c-run-usb-update.sh "$pkgdir"/usr/sbin/e54c-run-usb-update
+  install -Dm755 "$srcdir"/e54c-usb-nvme-update.initd "$pkgdir"/etc/init.d/e54c-usb-nvme-update
+  install -Dm644 "$srcdir"/e54c-usb-nvme-update.confd "$pkgdir"/etc/conf.d/e54c-usb-nvme-update
+}
+
+sha512sums="
+58ee48167e18a784a8759378f417a1fee9a2e9014252af2d9bd4f0abaf237e213e9fd26a20fa390d190fe9c921636ed2ca1cabdc9c94e7ce60641774d53a23cf  e54c-run-usb-update.sh
+d49574012177df9ddd2be465a5dd4fcd5022f0468ad0d39e6e89d79d95309fa3e0e7b2f81d17bb62b2cdaab33136e73105a24f2aa20e1c29b6ca63bfbe1936eb  e54c-usb-nvme-update.initd
+4453492fc9e4c726ad903d741fbd116f9ef08e511c8753743f917747554dc765b63ffcfa55b7d199ee28b98c2cfd7a4e2a500b3c114eb4941151728d4096b7bb  e54c-usb-nvme-update.confd
+"

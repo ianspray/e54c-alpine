@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: MIT
+# Maintainer: IWS <iws@toothless.local>
+pkgname=alpian-apkovl-service
+pkgver=0.1.0
+pkgrel=0
+pkgdesc="Alpian apkovl restore service for persistent configuration"
+url="https://example.invalid/alpian"
+arch="noarch"
+license="MIT"
+depends="openrc"
+source="
+	apkovl-restore.initd
+	apkovl-restore.sh
+"
+builddir="$srcdir"
+options="!check"
+
+package() {
+	install -Dm755 "$srcdir"/apkovl-restore.sh "$pkgdir"/usr/sbin/apkovl-restore
+	install -Dm755 "$srcdir"/apkovl-restore.initd "$pkgdir"/etc/init.d/apkovl-restore
+	install -Dm644 /dev/null "$pkgdir"/etc/conf.d/apkovl-restore
+}
+
+sha512sums="
+8a5fe69e8b6be62c4e68af6244b4763bb4dc3917c1fdf167a787410d82ef343e2dddeadbbd1732a175660b4e9878d34d8dde6edecb678e7a8d880583457c61c7  apkovl-restore.initd
+5c93a661276b676dfe798d57cbed0b9cda5439a3b4bfd0364d6dea23c96f78c04698a75a44f53e3023a36294aff77a58cb8ce0433dc5d8fb6df3a3de23583ed8  apkovl-restore.sh
+"

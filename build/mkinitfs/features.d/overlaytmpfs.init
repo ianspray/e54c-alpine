@@ -1,0 +1,31 @@
+#!/bin/sh
+# SPDX-License-Identifier: MIT
+# Copyright (c) 2026 Ian Spray
+
+overlay_mount_root() {
+    echo ">> Using tmpfs overlay root"
+
+    mkdir -p /mnt/lower /mnt/tmpfs /mnt/newroot
+
+    # Mount real root read-only
+    mount -o ro "$ROOT" /mnt/lower || panic "Failed to mount root"
+
+    # tmpfs upper
+    mount -t tmpfs tmpfs /mnt/tmpfs || panic "tmpfs failed"
+
+    mkdir -p /mnt/tmpfs/upper
+    mkdir -p /mnt/tmpfs/work
+
+    # Overlay mount
+    mount -t overlay overlay \
+        -o lowerdir=/mnt/lower,upperdir=/mnt/tmpfs/upper,workdir=/mnt/tmpfs/work \
+        /mnt/newroot || panic "overlay mount failed"
+
+    # Replace root
+    ROOT=/mnt/newroot
+}
+
+# Hook into initramfs flow
+init_mount() {
+    overlay_mount_root
+}
