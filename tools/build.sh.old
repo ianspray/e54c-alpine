@@ -1,0 +1,82 @@
+#!/bin/sh
+set -e
+
+WORK=/work
+OUT=$WORK/out
+ROOTFS=$WORK/rootfs
+APKROOT=$WORK/apkroot
+
+mkdir -p $OUT $ROOTFS $APKROOT
+
+echo "===> Creating Alpine root filesystem"
+
+# Base rootfs
+apk --root $ROOTFS \
+    --initdb add \
+    alpine-base \
+    busybox \
+    openrc
+
+# Add additional packages (customize here)
+apk --root $ROOTFS add \
+    openssh \
+    e2fsprogs \
+    tzdata
+
+# Copy overlay files (your configs)
+rsync -a $WORK/rootfs-overlay/ $ROOTFS/
+
+echo "===> Configure OpenRC"
+
+# Ensure OpenRC works in containerized root
+echo "rc_sys=lxc" >> $ROOTFS/etc/rc.conf
+echo "rc_provide=loopback" >> $ROOTFS/etc/rc.conf
+
+# Enable services
+chroot $ROOTFS rc-update add sshd default
+
+echo "===> Install mkinitfs feature"
+
+mkdir -p $ROOTFS/etc/mkinitfs/features.d
+cp $WORK/mkinitfs/features.d/overlaytmpfs.init \
+   $ROOTFS/etc/mkinitfs/features.d/
+
+echo "features=\"base overlaytmpfs\"" > \
+   $ROOTFS/etc/mkinitfs/mkinitfs.conf
+
+echo "===> Build initramfs"
+
+KVER=$(ls /lib/modules | head -n1)
+
+mkinitfs -b $ROOTFS \
+    -c $ROOTFS/etc/mkinitfs/mkinitfs.conf \
+    $KVER
+
+echo "===> Prepare boot partition"
+
+BOOT=$WORK/boot
+mkdir -p $BOOT
+
+cp $ROOTFS/boot/vmlinuz-* $BOOT/vmlinuz
+cp $ROOTFS/boot/initramfs-* $BOOT/initramfs
+
+# Basic extlinux.conf (U-Boot generic)
+mkdir -p $BOOT/extlinux
+
+cat > $BOOT/extlinux/extlinux.conf <<EOF
+LABEL alpine
+    KERNEL /vmlinuz
+    INITRD /initramfs
+    APPEND root=/dev/mmcblk0p2 rw console=ttyS0,115200
+EOF
+
+echo "===> Build disk image"
+
+genimage \
+  --rootpath $ROOTFS \
+  --tmppath /tmp/genimage \
+  --inputpath $WORK \
+  --outputpath $OUT \
+  --config $WORK/genimage.cfg
+
+echo "===> DONE"

@@ -1,0 +1,24 @@
+.PHONY: populate-cache build clean alpian
+
+populate-cache:
+	podman volume create apk-cache 2>/dev/null || true
+	podman run --rm \
+		-v apk-cache:/dest \
+		-v $(CURDIR)/../cache/apk-cache:/src:ro \
+		alpine:3.23.3 \
+		cp -r /src/. /dest/
+
+build: populate-cache
+	podman build \
+	-v $$(podman volume inspect apk-cache --format '{{.Mountpoint}}'):/apk-cache:ro \
+	-t alpian-builder .
+
+clean:
+	podman rmi alpian-builder
+
+alpian:
+	podman run --rm -it \
+        -v $(pwd)/../:/work \
+        --cap-add CAP_SETUID,CAP_SETGID,CAP_FOWNER,CAP_CHOWN,CAP_FSETID \
+        alpian-builder \
+        sh build.sh

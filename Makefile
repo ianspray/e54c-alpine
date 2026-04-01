@@ -37,9 +37,10 @@ populate-cache: fetch-apk
 		alpine:3.23.3 \
 		cp -r /src/. /dest/
 
-build-tools: $(APKFETCH) fetch-apk populate-cache
+build-tools: $(APKFETCH) fetch-apk populate-cache tools/Containerfile tools/abuild-pkg.sh tools/alpian-build.sh
 	podman build \
 	-f tools/Containerfile \
+	-v $(CURDIR)/tools:/tools:ro \
 	-t alpian-builder .
 
 build/aports/abuild.rsa:
@@ -110,15 +111,17 @@ build-uboot: build-tools
 
 # gather the assets required in order to be able to build a disc image, but
 # do not create the final bootable/flashable output binary itself
-build: build-tools build-linux build-uboot abuild-keys
+#build: build-tools build-linux build-uboot abuild-keys
+build: build-tools
 	podman run --rm -it \
 	-v ./cache:/cache \
 	-v ./boards:/boards:ro \
+	-v ./cache/apk-cache:/home/builder/packages/alpian \
 	-v ./build:/build \
 	-v ./out:/out \
 	-e BOARD=${BOARD} \
 	alpian-builder \
-	sh alpian-build.sh
+	alpian-build.sh
 
 # assemble the rootfs and bootfs into a functional image for a physical device
 image: build-tools build
