@@ -1,4 +1,0 @@
-# SPDX-License-Identifier: MIT
-target_device="/dev/nvme0n1"
-root_partlabel="rock3b-updater-rootfs"
-target_wait_seconds="120"

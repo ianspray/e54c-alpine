@@ -1,3 +1,0 @@
-# SPDX-License-Identifier: MIT
-# Space-separated list of NTP servers for one-shot boot sync.
-servers="pool.ntp.org time.cloudflare.com time.google.com"

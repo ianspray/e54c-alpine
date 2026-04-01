@@ -1,4 +1,0 @@
-# SPDX-License-Identifier: MIT
-# Message emitted by the sample hook during boot.
-# Override this file after package install and persist with `lbu commit`.
-sample_message="e54c-openrc-sample hook executed"
