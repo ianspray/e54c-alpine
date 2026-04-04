@@ -1,8 +1,6 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 Ian Spray
 
-APKFETCH_PATH   := tools/apkfetch
-APKFETCH        := $(APKFETCH_PATH)/apkfetch
 VERSION         ?= v3.23
 ARCH            ?= aarch64
 APK_CACHE_DIR   ?= ./cache/apk-cache
@@ -14,34 +12,28 @@ BOARD		?= e25
 
 include boards/$(BOARD)/$(BOARD).env
 
-.PHONY: populate-cache build-tools image build build-linx build-uboot build-rootfs build-bootfs fetch fetch-apk fetch-linux fetch-uboot clean index help abuild-keys
+.PHONY: build-tools image build build-linux build-uboot build-rootfs build-bootfs fetch fetch-apk fetch-linux fetch-uboot clean index help abuild-keys
 
 $(APKFETCH):
 	$(MAKE) -C $(APKFETCH_PATH)
 
 # Scan Containerfiles and shell scripts in SCAN_DIRS, resolve deps, download .apk files.
-fetch-apk: $(APKFETCH)
-	mkdir -p $(APK_CACHE_DIR); \
-	./$(APKFETCH) \
-		-version $(VERSION) \
-		-arch    $(ARCH) \
-		-cache   $(APK_CACHE_DIR) \
-		-v \
-		$(SCAN_DIRS)
-
-populate-cache: fetch-apk
-	podman volume create apk-cache 2>/dev/null || true
+fetch-apk:
 	podman run --rm \
-		-v apk-cache:/dest \
-		-v $(CURDIR)/cache/apk-cache:/src:ro \
+		-v $(CURDIR)/cache/apk-cache:/etc/apk/cache \
+		-v $(CURDIR):/src:ro \
+		-v $(CURDIR)/tools:/tools:ro \
 		alpine:3.23.3 \
-		cp -r /src/. /dest/
+		/tools/fetch-apks.sh
 
-build-tools: $(APKFETCH) fetch-apk populate-cache tools/Containerfile tools/abuild-pkg.sh tools/alpian-build.sh
+
+#build-tools: fetch-apk tools/Containerfile tools/abuild-pkg.sh tools/alpian-build.sh tools/fetch-apks.sh
+build-tools:
 	podman build \
-	-f tools/Containerfile \
-	-v $(CURDIR)/tools:/tools:ro \
-	-t alpian-builder .
+		-f tools/Containerfile \
+		-v $(CURDIR)/cache/apk-cache:/etc/apk/cache \
+		-v $(CURDIR)/tools:/tools:ro \
+		-t alpian-builder .
 
 build/aports/abuild.rsa:
 	openssl genrsa -out build/aports/abuild.rsa 4096
@@ -56,29 +48,29 @@ abuild-keys: build/aports/abuild.rsa build/aports/abuild.rsa.pub
 fetch-linux:
 	mkdir -p ./$(LINUX_CACHE_DIR); \
 	podman run --rm -it \
-	-v ./$(LINUX_CACHE_DIR):/work \
-	alpian-builder \
-	/bin/sh -c 'if [ -d $(KERNEL_DIR)/kernel ]; then \
-		git -C $(KERNEL_DIR)/kernel fetch origin && \
-		git -C $(KERNEL_DIR)/kernel reset --hard origin/$(KERNEL_BRANCH)  && \
-		git -C $(KERNEL_DIR)/kernel clean -fdx; \
-	else \
-		git clone --branch $(KERNEL_BRANCH) $(KERNEL_REPO) $(KERNEL_DIR); \
-	fi'
+		-v i$(CUR_DIR)/$(LINUX_CACHE_DIR):/work \
+		alpian-builder \
+		/bin/sh -c 'if [ -d $(KERNEL_DIR)/kernel ]; then \
+			git -C $(KERNEL_DIR)/kernel fetch origin && \
+			git -C $(KERNEL_DIR)/kernel reset --hard origin/$(KERNEL_BRANCH)  && \
+			git -C $(KERNEL_DIR)/kernel clean -fdx; \
+		else \
+			git clone --branch $(KERNEL_BRANCH) $(KERNEL_REPO) $(KERNEL_DIR); \
+		fi'
 
 fetch-uboot:
 ifdef UBOOT_REPO
 	mkdir -p ./$(UBOOT_CACHE_DIR); \
 	podman run --rm -it \
-	-v ./$(UBOOT_CACHE_DRR):/work \
-	alpian-builder \
-	/bin/sh -c 'if [ -d $(UBOOT_DIR)/u-boot ]; then \
-		git -C $(UBOOT_DIR)/u-boot fetch origin && \
-		git -C $(UBOOT_DIR)/u-boot reset --hard $(UBOOT_BRANCH)  && \
-		git -C $(UBOOT_DIR)/u-boot clean -fdx; \
-	else \
-		git clone --branch $(UBOOT_BRANCH) $(UBOOT_REPO) $(UBOOT_DIR)/u-boot; \
-	fi'
+		-v ./$(UBOOT_CACHE_DRR):/work \
+		alpian-builder \
+		/bin/sh -c 'if [ -d $(UBOOT_DIR)/u-boot ]; then \
+			git -C $(UBOOT_DIR)/u-boot fetch origin && \
+			git -C $(UBOOT_DIR)/u-boot reset --hard $(UBOOT_BRANCH)  && \
+			git -C $(UBOOT_DIR)/u-boot clean -fdx; \
+		else \
+			git clone --branch $(UBOOT_BRANCH) $(UBOOT_REPO) $(UBOOT_DIR)/u-boot; \
+		fi'
 else
 	@echo "UBOOT_REPO not set - skipping"
 endif
@@ -93,52 +85,52 @@ fetch: fetch-apk fetch-linux fetch-uboot
 
 build-linux: build-tools
 	podman run --rm -it \
-	-v ./cache:/cache \
-	-v ./boards:/boards:ro \
-	-v ./build:/build \
-	-v ./out:/out \
-	alpian-builder \
-	sh alpian-kernel.sh
+		-v $(CURDIR)/cache:/cache \
+		-v $(CURDIR)/boards:/boards:ro \
+		-v $(CURDIR)/build:/build \
+		-v $(CURDIR)/out:/out \
+		alpian-builder \
+		sh alpian-kernel.sh
 
 build-uboot: build-tools
 	podman run --rm -it \
-	-v ./cache:/cache \
-	-v ./boards:/boards:ro \
-	-v ./build:/build \
-	-v ./out:/out \
-	alpian-builder \
-	sh alpian-uboot.sh
+		-v $(CURDIR)/cache:/cache \
+		-v $(CURDIR)/boards:/boards:ro \
+		-v $(CURDIR)/build:/build \
+		-v $(CURDIR)/out:/out \
+		alpian-builder \
+		sh alpian-uboot.sh
 
 # gather the assets required in order to be able to build a disc image, but
 # do not create the final bootable/flashable output binary itself
 #build: build-tools build-linux build-uboot abuild-keys
 #build: build-tools
+		#-v $(CURDIR)/cache/apk-cache:/home/builder/packages/alpian \
 build:
 	podman run --rm -it \
-	-v ./cache:/cache \
-	-v ./boards:/boards:ro \
-	-v ./cache/apk-cache:/home/builder/packages/alpian \
-	-v ./build:/build \
-	-v ./out:/out \
-	-e BOARD=${BOARD} \
-	alpian-builder \
-	alpian-build.sh
+		-v $(CURDIR)/cache:/cache \
+		-v $(CURDIR)/boards:/boards:ro \
+		-v $(CURDIR)/cache/apk-cache:/etc/apk/cache \
+		-v $(CURDIR)/build:/build \
+		-v $(CURDIR)/out:/out \
+		-e BOARD=${BOARD} \
+		alpian-builder \
+		alpian-build.sh
 
 # assemble the rootfs and bootfs into a functional image for a physical device
 image: build-tools build
 	podman run --rm -it \
-	-v ./cache:/cache \
-	-v ./rootfs:/rootfs \
-	-v ./bootfs:/bootfs \
-	-v ./out:/out \
-	alpian-builder \
-	sh alpian-image.sh
+		-v $(CURDIR)/cache:/cache \
+		-v $(CURDIR)/rootfs:/rootfs \
+		-v $(CURDIR)/bootfs:/bootfs \
+		-v $(CURDIR)/out:/out \
+		alpian-builder \
+		sh alpian-image.sh
 
 # - - - - - -
 
 # tidy up the build tooling
 clean:
-	rm $(APKFETCH); \
 	podman rmi alpian-builder
 
 # tidy up both the build tooling and all local caches (ie: revert to a clean

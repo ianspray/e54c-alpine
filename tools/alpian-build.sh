@@ -9,6 +9,7 @@ set -e
 CACHE_DIR="/cache"
 BOARDS_DIR="/boards"
 BUILD_DIR="/build"
+WORK_DIR="/work"
 OUT_DIR="/out"
 
 source "${BOARDS_DIR}/${BOARD}/${BOARD}.env"
@@ -17,7 +18,7 @@ LINUX_SRC="${CACHE_DIR}/linux/${KERNEL_DIR}/kernel"
 UBOOT_SRC="${CACHE_DIR}/u-boot/${UBOOT_DIR}/u-boot"
 APORTS_SRC="${BUILD_DIR}/aports"
 
-ROOTFS="${OUT_DIR}/rootfs"
+ROOTFS="${WORK_DIR}/rootfs"
 
 ####################
 # F U N C T I O N S
@@ -36,9 +37,9 @@ setup_builder() {
   cp -f "${APORTS_SRC}/abuild.rsa.pub" /etc/apk/keys
 
   echo "/apk-cache" > /etc/apk/repositories
-  cd /apk-cache/aarch64
-  apk index -o APKINDEX.tar.gz *.apk
-  cd -
+#  cd /apk-cache/aarch64
+#  apk index -o APKINDEX.tar.gz *.apk
+#  cd -
   echo "${BUILD_DIR}/apk/alpian" >> /etc/apk/repositories
   echo "${BUILD_DIR}/apk/${BOARD}" >> /etc/apk/repositories
 }

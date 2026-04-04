@@ -3,10 +3,10 @@
 
 FROM alpine:3.23.3
 
-COPY cache/apk-cache /apk-cache
+# ensure /etc/apk/cache is a bind mount to a local tree
 
-RUN apk add --no-network --allow-untrusted \
-    --repository /apk-cache \
+RUN apk update && \
+    apk add --allow-untrusted \
     alpine-base \
     alpine-sdk \
     abuild \
@@ -27,7 +27,7 @@ RUN apk add --no-network --allow-untrusted \
 RUN addgroup builder && \
     adduser -h /home/builder -G builder -D builder && \
     echo 'builder ALL=(ALL) NOPASSWD: /sbin/apk' >> /etc/sudoers && \
-    echo 'SUDO_APK="sudo /sbin/apk --no-interactive --no-network --no-cache --allow-untrusted --repository /apk-cache"' >> /etc/abuild.conf
+    echo 'SUDO_APK="sudo /sbin/apk --no-interactive --no-network --no-cache --allow-untrusted"' >> /etc/abuild.conf
 
 COPY /tools/abuild-pkg.sh /usr/bin/
 COPY /tools/alpian-build.sh /usr/bin/

@@ -2,11 +2,12 @@
 # These APK's will be added to the image of all boards
 # NB: this file assumes items that are only correct inside alpian-build.sh
 apk add --no-network --allow-untrusted \
-  --repository /apk-cache \
   --repository ${BUILD_DIR}/apk/alpian \
   --repository ${BUILD_DIR}/apk/${BOARD} \
   --root ${ROOTFS} \
+  --initdb \
   alpine-base \
+  openrc \
   openssh \
   e2fsprogs \
   tzdata \
