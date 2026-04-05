@@ -1,5 +1,6 @@
 **.swp
 .DS_Store
+build/apk/**
 build/aports/abuild.rsa
 build/aports/abuild.rsa.pub
 tools/apkfetch/apkfetch

@@ -20,6 +20,7 @@ UBOOT_SRC="${CACHE_DIR}/u-boot/${UBOOT_DIR}/u-boot"
 APORTS_SRC="${BUILD_DIR}/aports"
 
 ROOTFS="${WORK_DIR}/rootfs"
+ROOTFS="${WORK_DIR}/bootfs"
 
 ####################
 # F U N C T I O N S
@@ -87,22 +88,65 @@ build_rootfs() {
   apk --root ${ROOTFS} add --initdb
   cp /etc/apk/repositories $ROOTFS/etc/apk
   # add the packages common for all boards
-  echo "Common..."
+  echo "Add Common APKs..."
   source ${BOARDS_DIR}/common/packages.sh
   # add the packages that this specific device wants
-  echo "${BAORD}..."
+  echo "Add ${BOARD} APKs..."
   source ${BOARDS_DIR}/${BOARD}/packages.sh
-  # copy in any tree of files that is always to be present
+}
+
+setup_alpine() {
+  echo "setup_alpine()"
+  # Ensure OpenRC works in containerized root
+  echo "rc_sys=lxc" >> ${ROOTFS}/etc/rc.conf
+  echo "rc_provide=loopback" >> ${ROOTFS}/etc/rc.conf
+  # Enable services
+  chroot ${ROOTFS} rc-update add sshd default
+  # copy in the tree of files that is always to be present
   echo cp -a ${BUILD_DIR}/rootfs-overlay/* ${ROOTFS}/
   cp -a ${BUILD_DIR}/rootfs-overlay/* ${ROOTFS}/
+  # FIXME: this is opaque and probably incorrect - read from custom kernel build
+  KVER=$( ls /lib/modules | head -n1 )
+  # build initramfs
+  mkinitfs -b ${ROOTFS} \
+    -c ${ROOTFS}/etc/mkinitfs/mkinitfs.conf \
+    ${KVER}
+}
+
+export_rootfs() {
+  echo "export_rootfs()"
+  tar -cvpf ${OUT}/rootfs.tar -C ${ROOTFS}
+  xz ${OUT}/rootfs.tar
 }
 
 build_bootfs() {
   echo "build_bootfs"
+  mkdir -p ${BOOTFS}
+  # copy in the tree of files that is always to be present
+  echo cp -a ${BUILD_DIR}/bootfs/* ${BOOTFS}/
+  cp -a ${BUILD_DIR}/bootfs/* ${BOOTFS}/
+  # FIXME: run the extlinux.conf file through an env var expansion
+  # so that the correct boot media and kernel command line can be set
+  echo "*** Missing extlinx.conf changes for ${BOARD}"
+  # FIXME: should this come from the kernel & uboot builds ?
+  cp ${ROOTFS}/boot/vmlinuz-* ${BOOTFS}/vmlinuz
+  cp ${ROOTFS}/boot/initramfs-* ${BOOTFS}/initramfs
+}
+
+export_bootfs() {
+  echo "export_bootfs()"
+  tar -cvpf ${OUT}/bootfs.tar -C ${BOOTFS}
+  xz ${OUT}/bootfs.tar
 }
 
 build_image() {
   echo "build_image()"
+  genimage \
+    --rootpath ${ROOTFS}
+    --tmppath /tmp/genimage \
+    --inputpath ${WORK} \
+    --outputpath ${OUT} \
+    --config ${BOARDS_DIR}/${BOARD}/genimage.${BOARD}
 }
 
 ##########
@@ -110,4 +154,12 @@ build_image() {
 #
 setup_builder
 build_aports
+build_uboot
+build_linux
 build_rootfs
+setup_alpine
+build_bootfs
+export_rootfs
+export_bootfs
+build_image
+echo "Done."
