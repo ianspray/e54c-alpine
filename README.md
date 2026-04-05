@@ -98,7 +98,9 @@ Key directories and files, with the entries that are marked `...` varying in con
 │   │   └── ...
 │   └── u-boot
 │       └── ...
+├── LICENCE.md
 ├── Makefile
+├── NOTES_FROM_A_HUMAN.md
 ├── out
 │    └─── ...
 ├── README.md
