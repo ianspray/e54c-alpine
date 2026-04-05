@@ -16,7 +16,9 @@ OUT_DIR="/out"
 source "${BOARDS_DIR}/${BOARD}/${BOARD}.env"
 
 LINUX_SRC="${CACHE_DIR}/linux/${KERNEL_DIR}/kernel"
+LINUX_CFG="${BOARDS_DIR}/${BOARD}/linux.config"
 UBOOT_SRC="${CACHE_DIR}/u-boot/${UBOOT_DIR}/u-boot"
+UBOOT_CFG="${BOARDS_DIR}/${BOARD}/u-boot.config"
 APORTS_SRC="${BUILD_DIR}/aports"
 
 ROOTFS="${WORK_DIR}/rootfs"
@@ -76,10 +78,40 @@ build_aports() {
 
 build_linux() {
   echo "build_linux()"
+  cd "${LINUX_SRC}"
+  make clean
+  # take the preferred defaults
+  cp "${LINUX_CFG}" .config
+  # fold in any new options with sensible defaults
+  make olddefconfig
+  # build the kernel
+  make
+  # build modules
+  make modules
+  # FIXME: do I need to execute the code from the following line ?
+  echo make modules_install
+  # show any new options and their defaults
+  echo "--- new linux kernel config entries and defaults: ---"
+  make listnewconfig
+  echo "--- new kernel config ends ---"
+  cd -
 }
 
 build_uboot() {
   echo "build_uboot()"
+  cd "${UBOOT_SRC}"
+  make clean
+  # take the preferred defaults
+  cp "${UBOOT_CFG}" .config
+  # fold in any new options with sensible defaults
+  make olddefconfig
+  # build the kernel
+  make
+  # show any new options and their defaults
+  echo "--- new u-boot config entries and defaults: ---"
+  make listnewconfig
+  echo "--- new u-boot config ends ---"
+  cd -
 }
 
 build_rootfs() {
