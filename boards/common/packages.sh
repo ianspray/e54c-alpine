@@ -17,7 +17,6 @@ apk add --no-scripts --allow-untrusted \
   wget \
   htop \
   curl \
-  linux-lts \
   libelf \
   libmnl \
   iproute2-minimal \

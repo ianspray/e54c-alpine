@@ -101,6 +101,8 @@ build_linux() {
   cp "${BOARDS_DIR}/${BOARD}/${BOARD}.dts" .
   # perform any cpp preprocessing of the DTS
   cpp -nostdinc \
+    -I arch/arm64/boot/dts/rockchip \
+    -I arch/arm64/boot/dts/broadcom \
     -I arch/arm64/boot/dts \
     -I include \
     -undef -x assembler-with-cpp \
